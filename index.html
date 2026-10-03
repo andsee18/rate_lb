@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0c10">
+  <title>Rate LB — рейтинг района</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --tg-theme-bg-color: #090b0f;
+      --tg-theme-secondary-bg-color: #11151c;
+      --tg-theme-text-color: #f4f6f8;
+      --tg-theme-hint-color: #8993a1;
+      --tg-theme-button-color: #47a7ff;
+      --tg-theme-button-text-color: #ffffff;
+      --page-bg: var(--tg-theme-bg-color, #090b0f);
+      --surface: var(--tg-theme-secondary-bg-color, #11151c);
+      --surface-raised: #171c25;
+      --line: rgba(255, 255, 255, .08);
+      --muted: var(--tg-theme-hint-color, #8993a1);
+      --text: var(--tg-theme-text-color, #f4f6f8);
+      --accent: #47a7ff;
+      color-scheme: dark;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--page-bg); }
+    body { color: var(--text); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+    button { font: inherit; }
+    .app-shell { width: min(100%, 680px); margin: 0 auto; padding: 24px 16px calc(34px + env(safe-area-inset-bottom)); }
+
+    .hero { display: flex; align-items: flex-start; justify-content: space-between; margin: 10px 0 30px; }
+    .eyebrow { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; color: var(--accent); font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    .eyebrow::before { width: 7px; height: 7px; border-radius: 50%; background: #54df9b; box-shadow: 0 0 12px #54df9b; content: ""; }
+    h1 { margin: 0; font-size: clamp(34px, 10vw, 46px); font-weight: 850; letter-spacing: -.07em; line-height: .95; }
+    .subtitle { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
+    .club-mark { display: grid; place-items: center; width: 46px; height: 46px; border: 1px solid rgba(71, 167, 255, .3); border-radius: 14px; background: linear-gradient(145deg, rgba(71, 167, 255, .18), rgba(71, 167, 255, .02)); color: var(--accent); font-size: 15px; font-weight: 900; letter-spacing: -.08em; }
+
+    .section-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .section-title { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .updated { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 16px; padding: 4px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,.035); }
+    .tab { padding: 10px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 750; cursor: pointer; }
+    .tab.is-active { background: #252d38; color: var(--text); box-shadow: 0 3px 10px rgba(0,0,0,.18); }
+    .leaderboard { display: grid; gap: 9px; }
+    .user-card { display: grid; grid-template-columns: 32px 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; padding: 11px 12px 11px 10px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: inherit; text-align: left; cursor: pointer; transition: transform .18s ease, border-color .18s ease, background .18s ease; -webkit-tap-highlight-color: transparent; }
+    .user-card:active { transform: scale(.985); }
+    .user-card:hover { border-color: rgba(71, 167, 255, .35); background: var(--surface-raised); }
+    .rank { color: var(--muted); font-size: 14px; font-weight: 700; text-align: center; }
+    .rank.top { font-size: 20px; font-weight: 900; letter-spacing: -.08em; }
+    .rank.gold { color: #f6c453; text-shadow: 0 0 15px rgba(246, 196, 83, .35); }
+    .rank.silver { color: #c6d0db; }
+    .rank.bronze { color: #d98b5f; }
+    .avatar { width: 48px; height: 48px; border: 2px solid rgba(255,255,255,.1); border-radius: 50%; background: #27303b center / cover no-repeat; box-shadow: 0 5px 15px rgba(0,0,0,.2); }
+    .identity { min-width: 0; }
+    .name { display: block; overflow: hidden; margin: 0; font-size: 15px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+    .nickname { display: block; overflow: hidden; margin-top: 5px; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .metrics { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+    .score { font-size: 17px; font-weight: 850; letter-spacing: -.04em; }
+    .status { display: inline-flex; align-items: center; min-height: 20px; padding: 3px 7px; border-radius: 6px; font-size: 9px; font-weight: 850; letter-spacing: .07em; white-space: nowrap; }
+    /* The scale reads from light bronze through silver and gold into red elite tiers. */
+    .status-true-adam { color: #ffe8ec; border: 1px solid #d14c68; background: linear-gradient(135deg, #8f1838, #5c0d28); box-shadow: 0 0 18px rgba(151, 20, 58, .42); }
+    .status-chad { color: #ffe4e2; border: 1px solid #d65a58; background: #8f292d; }
+    .status-htn { color: #fff1c4; border: 1px solid #b18a37; background: #6f5318; }
+    .status-mtn { color: #16202b; border: 1px solid #b8c4cf; background: #b7c2cc; }
+    .status-ltn { color: #e2e7ec; border: 1px solid #66727e; background: #454e59; }
+    .status-sub-5 { color: #2d1a0e; border: 1px solid #d4935b; background: #a9683a; }
+    .status-sub-3 { color: #3e2717; border: 1px solid #e1a66e; background: #c98852; }
+    .status-unrated { color: #c6d0db; border: 1px solid #536170; background: #252d38; }
+    .unrated-card { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+    .unrated-card .avatar { width: 42px; height: 42px; }
+    .unrated-card .identity { flex: 1; }
+    .username { display: block; overflow: hidden; margin-top: 4px; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .empty-state { padding: 28px 16px; border: 1px dashed var(--line); border-radius: 16px; color: var(--muted); font-size: 13px; line-height: 1.5; text-align: center; }
+    .error-state { color: #ffb4bd; }
+
+    .sheet-backdrop { position: fixed; z-index: 10; inset: 0; background: rgba(0, 0, 0, .68); opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+    .sheet-backdrop.is-open { opacity: 1; pointer-events: auto; }
+    .bottom-sheet { position: fixed; z-index: 11; right: 0; bottom: 0; left: 0; max-height: min(82vh, 680px); overflow: auto; border: 1px solid var(--line); border-bottom: 0; border-radius: 24px 24px 0 0; background: #12161e; transform: translateY(105%); transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+    .bottom-sheet.is-open { transform: translateY(0); }
+    .sheet-inner { width: min(100%, 680px); margin: 0 auto; padding: 12px 20px calc(24px + env(safe-area-inset-bottom)); }
+    .sheet-handle { width: 38px; height: 4px; margin: 0 auto 22px; border-radius: 99px; background: #4e5968; }
+    .sheet-head { display: flex; align-items: center; gap: 13px; padding-bottom: 22px; }
+    .sheet-avatar { width: 58px; height: 58px; flex: 0 0 auto; border-radius: 50%; background: center / cover no-repeat; }
+    .sheet-name { margin: 0 0 5px; font-size: 21px; font-weight: 800; letter-spacing: -.04em; }
+    .sheet-nickname { color: var(--muted); font-size: 13px; }
+    .sheet-score { margin-left: auto; text-align: right; }
+    .sheet-score strong { display: block; font-size: 25px; letter-spacing: -.06em; }
+    .sheet-score span { color: var(--muted); font-size: 10px; text-transform: uppercase; }
+    .detail-grid { display: grid; gap: 10px; }
+    .detail-block { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); }
+    .detail-label { margin-bottom: 8px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    .detail-block p { margin: 0; font-size: 14px; line-height: 1.5; }
+    .detail-block.pros { border-color: rgba(82, 214, 150, .18); }
+    .detail-block.pros .detail-label { color: #52d696; }
+    .detail-block.cons { border-color: rgba(223, 129, 70, .18); }
+    .detail-block.cons .detail-label { color: #df8146; }
+    .close-sheet { width: 100%; margin-top: 16px; padding: 13px; border: 0; border-radius: 12px; background: #242b36; color: var(--text); font-size: 13px; font-weight: 750; cursor: pointer; }
+    @media (min-width: 600px) { .app-shell { padding-top: 42px; } .detail-grid { grid-template-columns: 1fr 1fr; } .detail-block.verdict { grid-column: 1 / -1; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">LB / PRIVATE CLUB</p>
+        <h1>Rate LB</h1>
+        <p class="subtitle">Официальный рейтинг района</p>
+      </div>
+      <div class="club-mark" aria-label="LB Club">LB</div>
+    </header>
+
+    <section aria-labelledby="leaderboard-title">
+      <div class="section-heading">
+        <h2 class="section-title" id="leaderboard-title">Участники</h2>
+        <span class="updated">2026</span>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Категория участников">
+        <button class="tab is-active" id="ratedTab" type="button" role="tab" aria-selected="true" data-view="rated">Топ рейтинга</button>
+        <button class="tab" id="unratedTab" type="button" role="tab" aria-selected="false" data-view="unrated">Пока не оценён</button>
+      </div>
+      <div class="leaderboard" id="leaderboard" role="tabpanel" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <div class="sheet-backdrop" id="sheetBackdrop"></div>
+  <aside class="bottom-sheet" id="detailsSheet" aria-hidden="true" aria-labelledby="sheetName" role="dialog">
+    <div class="sheet-inner">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <div class="sheet-avatar" id="sheetAvatar"></div>
+        <div>
+          <h2 class="sheet-name" id="sheetName"></h2>
+          <div class="sheet-nickname" id="sheetNickname"></div>
+        </div>
+        <div class="sheet-score"><strong id="sheetScore"></strong><span>средний балл</span></div>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-block pros"><div class="detail-label">Плюсы</div><p id="sheetPros"></p></div>
+        <div class="detail-block cons"><div class="detail-label">Минусы</div><p id="sheetCons"></p></div>
+        <div class="detail-block verdict"><div class="detail-label">Вердикт клуба</div><p id="sheetVerdict"></p></div>
+      </div>
+      <button class="close-sheet" id="closeSheet" type="button">Закрыть</button>
+    </div>
+  </aside>
+
+  <script>
+    const telegram = window.Telegram?.WebApp;
+    telegram?.expand();
+    telegram?.ready();
+
+    const leaderboard = document.querySelector("#leaderboard");
+    const sheet = document.querySelector("#detailsSheet");
+    const backdrop = document.querySelector("#sheetBackdrop");
+    let activeUser = null;
+
+    let users = { rated: [], unrated: [] };
+    let activeView = "rated";
+
+    function avatarStyle(url) {
+      return `background-image: url("${url}"), linear-gradient(145deg, #303b49, #18202a)`;
+    }
+
+    function renderUsers() {
+      if (activeView === "unrated") {
+        leaderboard.innerHTML = users.unrated.length
+          ? users.unrated.map((user) => `<div class="unrated-card">
+              <span class="avatar" style="${avatarStyle(user.avatar_url)}" aria-hidden="true"></span>
+              <span class="identity"><strong class="name">${escapeHtml(user.name)}</strong><span class="username">${user.username ? `@${escapeHtml(user.username)}` : "Telegram-пользователь"}</span></span>
+              <span class="status status-unrated">Пока не оценён</span>
+            </div>`).join("")
+          : '<div class="empty-state">Все синхронизированные участники уже получили оценку.</div>';
+        return;
+      }
+      leaderboard.innerHTML = users.rated.length ? users.rated.map((user, index) => {
+        const position = index + 1;
+        const rankClass = position <= 3 ? `rank top ${["gold", "silver", "bronze"][position - 1]}` : "rank";
+        return `<button class="user-card" type="button" data-user-id="${user.id}" aria-label="Открыть профиль ${user.name}">
+          <span class="${rankClass}">#${position}</span>
+          <span class="avatar" style="${avatarStyle(user.avatar_url)}" aria-hidden="true"></span>
+          <span class="identity"><strong class="name">${escapeHtml(user.name)}</strong><span class="nickname">${user.nickname ? escapeHtml(user.nickname) : "Без клички"}</span></span>
+          <span class="metrics"><strong class="score">${Number(user.score).toFixed(2)}</strong><span class="status ${user.status_class}">${escapeHtml(user.status)}</span></span>
+        </button>`;
+      }).join("") : '<div class="empty-state">Пока нет оценённых участников. Администратор может использовать команду /rate.</div>';
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[character]));
+    }
+
+    async function loadUsers() {
+      leaderboard.innerHTML = '<div class="empty-state">Загрузка участников…</div>';
+      try {
+        const response = await fetch("/api/users", { headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error(`API returned ${response.status}`);
+        users = await response.json();
+        renderUsers();
+      } catch (error) {
+        console.error(error);
+        leaderboard.innerHTML = '<div class="empty-state error-state">Не удалось загрузить рейтинг. Проверьте, что API-сервер запущен.</div>';
+      }
+    }
+
+    function openDetails(user) {
+      activeUser = user;
+      document.querySelector("#sheetAvatar").style = avatarStyle(user.avatar_url);
+      document.querySelector("#sheetName").textContent = user.name;
+      document.querySelector("#sheetNickname").textContent = `${user.nickname || "Без клички"} · ${user.status}`;
+      document.querySelector("#sheetScore").textContent = user.score.toFixed(2);
+      document.querySelector("#sheetPros").textContent = user.details?.pros || "Данные появятся после расширения профиля участника.";
+      document.querySelector("#sheetCons").textContent = user.details?.cons || "Пока дополнительных комментариев нет.";
+      document.querySelector("#sheetVerdict").textContent = user.details?.verdict || `Участник получил статус ${user.status}.`;
+      sheet.classList.add("is-open");
+      backdrop.classList.add("is-open");
+      sheet.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeDetails() {
+      activeUser = null;
+      sheet.classList.remove("is-open");
+      backdrop.classList.remove("is-open");
+      sheet.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
+    leaderboard.addEventListener("click", (event) => {
+      const card = event.target.closest("[data-user-id]");
+      if (!card) return;
+      const user = users.rated.find((item) => item.id === Number(card.dataset.userId));
+      if (user) openDetails(user);
+    });
+    document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => {
+      activeView = tab.dataset.view;
+      document.querySelectorAll(".tab").forEach((item) => {
+        const selected = item === tab;
+        item.classList.toggle("is-active", selected);
+        item.setAttribute("aria-selected", String(selected));
+      });
+      renderUsers();
+    }));
+    document.querySelector("#closeSheet").addEventListener("click", closeDetails);
+    backdrop.addEventListener("click", closeDetails);
+    document.addEventListener("keydown", (event) => { if (event.key === "Escape" && activeUser) closeDetails(); });
+    loadUsers();
+  </script>
+</body>
+</html>
