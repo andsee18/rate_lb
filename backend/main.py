@@ -355,20 +355,48 @@ async def unrate_command(message: Message, command: CommandObject) -> None:
     Command("add", ignore_case=True),
     F.chat.type == ChatType.PRIVATE,
 )
-async def add_avatar_command(
+async def add_command(
     message: Message,
     command: CommandObject,
     state: FSMContext,
 ) -> None:
     if not message.from_user or message.from_user.id not in settings.admin_ids:
-        await message.answer("Добавлять аватарки могут только администраторы.")
+        await message.answer("Изменять данные могут только администраторы.")
         return
     args = (command.args or "").strip()
-    match = re.fullmatch(r"image\s+@?([A-Za-z0-9_]{5,32})", args, re.IGNORECASE)
-    if not match:
-        await message.answer("Формат: /add image @username")
+    image_match = re.fullmatch(
+        r"image\s+@?([A-Za-z0-9_]{5,32})",
+        args,
+        re.IGNORECASE,
+    )
+    nickname_match = re.fullmatch(r"(.+?)\s+@?([A-Za-z0-9_]{5,32})", args)
+    if image_match:
+        username = image_match.group(1)
+    elif nickname_match and nickname_match.group(1).strip().lower() != "image":
+        nickname, username = nickname_match.group(1).strip(), nickname_match.group(2)
+        if len(nickname) > 80:
+            await message.answer("Кличка не должна быть длиннее 80 символов.")
+            return
+        user = database.find_user_by_username(username)
+        if not user:
+            await message.answer(f"Пользователь @{username} не найден в базе.")
+            return
+        if not database.set_nickname(user["telegram_id"], nickname):
+            await message.answer("Не удалось сохранить кличку.")
+            return
+        await message.answer(
+            f"Кличка «{nickname}» сохранена для {user['first_name']}. "
+            "Оценка и вкладка пользователя не изменены."
+        )
         return
-    username = match.group(1)
+    else:
+        await message.answer(
+            "Форматы:\n"
+            "/add nickname @username\n"
+            "/add image @username"
+        )
+        return
+
     user = database.find_user_by_username(username)
     if not user:
         await message.answer(
@@ -381,39 +409,6 @@ async def add_avatar_command(
     await message.answer(
         f"Пришлите фотографию для @{user['username'] or username}. "
         "Отправьте её следующим сообщением."
-    )
-
-
-@router.message(
-    Command("add", ignore_case=True),
-    F.chat.type == ChatType.PRIVATE,
-)
-async def add_nickname_command(
-    message: Message,
-    command: CommandObject,
-) -> None:
-    if not message.from_user or message.from_user.id not in settings.admin_ids:
-        await message.answer("Изменять клички могут только администраторы.")
-        return
-    args = (command.args or "").strip()
-    match = re.fullmatch(r"(.+?)\s+@?([A-Za-z0-9_]{5,32})", args)
-    if not match or match.group(1).strip().lower() == "image":
-        await message.answer("Формат: /add nickname @username")
-        return
-    nickname, username = match.group(1).strip(), match.group(2)
-    if len(nickname) > 80:
-        await message.answer("Кличка не должна быть длиннее 80 символов.")
-        return
-    user = database.find_user_by_username(username)
-    if not user:
-        await message.answer(f"Пользователь @{username} не найден в базе.")
-        return
-    if not database.set_nickname(user["telegram_id"], nickname):
-        await message.answer("Не удалось сохранить кличку.")
-        return
-    await message.answer(
-        f"Кличка «{nickname}» сохранена для {user['first_name']}. "
-        "Оценка и вкладка пользователя не изменены."
     )
 
 
