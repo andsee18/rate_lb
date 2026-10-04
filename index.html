@@ -215,8 +215,10 @@
       return String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[character]));
     }
 
-    async function loadUsers() {
-      leaderboard.innerHTML = '<div class="empty-state">Загрузка участников…</div>';
+    async function loadUsers(showLoading = leaderboard.innerHTML.trim() === "") {
+      if (showLoading) {
+        leaderboard.innerHTML = '<div class="empty-state">Загрузка участников…</div>';
+      }
       try {
         const response = await fetch(`${API_BASE_URL}/api/users`, { headers: { Accept: "application/json" } });
         if (!response.ok) throw new Error(`API returned ${response.status}`);

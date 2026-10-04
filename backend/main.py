@@ -67,7 +67,7 @@ def user_payload(row: dict[str, Any]) -> dict[str, Any]:
         "avatar_url": (
             f"{settings.public_api_url}/api/avatar/{row['telegram_id']}"
             f"?v={cache_version}"
-        ),
+        ) if row["avatar_file_id"] else None,
         "details": None,
     }
 
