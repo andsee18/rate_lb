@@ -207,14 +207,15 @@ dispatcher.include_router(router)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    await bot.delete_webhook(drop_pending_updates=True)
     polling_task = asyncio.create_task(dispatcher.start_polling(bot))
     try:
         yield
     finally:
-        polling_task.cancel()
-        await bot.session.close()
+        await dispatcher.stop_polling()
         with contextlib.suppress(asyncio.CancelledError):
             await polling_task
+        await bot.session.close()
 
 
 app = FastAPI(title="Rate LB API", version="1.0.0", lifespan=lifespan)
