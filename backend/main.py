@@ -256,6 +256,45 @@ async def rate_command(message: Message, command: CommandObject) -> None:
 
 
 @router.message(
+    Command("unrate", ignore_case=True),
+    F.chat.type.in_({ChatType.PRIVATE, ChatType.GROUP, ChatType.SUPERGROUP}),
+)
+async def unrate_command(message: Message, command: CommandObject) -> None:
+    is_private_unrate = message.chat.type == ChatType.PRIVATE
+    if is_private_unrate:
+        authorized = bool(
+            message.from_user and message.from_user.id in settings.admin_ids
+        )
+    elif message.chat.id == settings.group_chat_id:
+        authorized = bool(
+            message.from_user
+            and await is_group_admin(message.from_user.id)
+        )
+    else:
+        authorized = False
+    if not authorized:
+        await message.answer("Снимать оценку могут только администраторы.")
+        return
+
+    username = (command.args or "").strip()
+    if not re.fullmatch(r"@?[A-Za-z0-9_]{5,32}", username):
+        await message.answer("Формат: /unrate @username")
+        return
+    username = username.lstrip("@")
+    user = database.find_user_by_username(username)
+    if not user:
+        await message.answer(f"Пользователь @{username} не найден в базе.")
+        return
+    if not database.unrate_user(user["telegram_id"]):
+        await message.answer("Не удалось снять оценку пользователя.")
+        return
+    await message.answer(
+        f"Оценка {user['first_name']} снята. "
+        "Пользователь возвращён в список «Пока не оценён»."
+    )
+
+
+@router.message(
     F.chat.id == settings.group_chat_id,
     F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}),
     F.from_user,
