@@ -162,6 +162,8 @@
 
     let users = { rated: [], unrated: [] };
     let activeView = "unrated";
+    let usersSignature = "";
+    const USERS_CACHE_KEY = "rate-lb-users-cache-v1";
 
     function avatarColor(name) {
       const palette = ["#398b73", "#4773a8", "#a56a45", "#7956a5", "#9b5268", "#3d8b8d"];
@@ -173,7 +175,7 @@
       const initial = escapeHtml(String(name || "?").trim().charAt(0).toUpperCase());
       const color = avatarColor(name);
       const image = url
-        ? `<img src="${escapeHtml(url)}" alt="" loading="eager" referrerpolicy="no-referrer" onerror="this.remove()">`
+        ? `<img src="${escapeHtml(url)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">`
         : "";
       return `<span class="avatar" style="--avatar-color: ${color}" aria-label="${escapeHtml(name)}"><span>${initial}</span>${image}</span>`;
     }
@@ -222,11 +224,33 @@
       try {
         const response = await fetch(`${API_BASE_URL}/api/users`, { headers: { Accept: "application/json" } });
         if (!response.ok) throw new Error(`API returned ${response.status}`);
-        users = await response.json();
+        const nextUsers = await response.json();
+        const nextSignature = JSON.stringify(nextUsers);
+        if (nextSignature === usersSignature) return;
+        usersSignature = nextSignature;
+        users = nextUsers;
+        localStorage.setItem(USERS_CACHE_KEY, nextSignature);
         setActiveView(users.rated.length ? "rated" : "unrated");
       } catch (error) {
         console.error(error);
         leaderboard.innerHTML = '<div class="empty-state error-state">Не удалось загрузить рейтинг. Проверьте, что API-сервер запущен.</div>';
+      }
+    }
+
+    function restoreCachedUsers() {
+      try {
+        const cached = localStorage.getItem(USERS_CACHE_KEY);
+        if (!cached) return false;
+        const parsed = JSON.parse(cached);
+        if (!Array.isArray(parsed.rated) || !Array.isArray(parsed.unrated)) return false;
+        users = parsed;
+        usersSignature = cached;
+        setActiveView(users.rated.length ? "rated" : "unrated");
+        return true;
+      } catch (error) {
+        console.warn("Failed to restore cached users:", error);
+        localStorage.removeItem(USERS_CACHE_KEY);
+        return false;
       }
     }
 
@@ -275,9 +299,11 @@
     document.querySelector("#closeSheet").addEventListener("click", closeDetails);
     backdrop.addEventListener("click", closeDetails);
     document.addEventListener("keydown", (event) => { if (event.key === "Escape" && activeUser) closeDetails(); });
+    const hasCachedUsers = restoreCachedUsers();
+    loadUsers(!hasCachedUsers);
     syncTelegramUser()
-      .catch((error) => console.warn("Telegram user sync skipped:", error))
-      .finally(loadUsers);
+      .then(loadUsers)
+      .catch((error) => console.warn("Telegram user sync skipped:", error));
     setInterval(loadUsers, 15000);
   </script>
 </body>
