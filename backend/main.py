@@ -62,7 +62,9 @@ async def save_telegram_user(user: Any) -> None:
     database.upsert_user(user.id, user.username, user.first_name, avatar_file_id)
 
 
-async def is_group_admin(user_id: int) -> bool:
+async def is_group_admin(user_id: int | None) -> bool:
+    if user_id is None:
+        return False
     if user_id in settings.admin_ids:
         return True
     member = await bot.get_chat_member(settings.group_chat_id, user_id)
@@ -104,14 +106,36 @@ async def on_chat_member(update: ChatMemberUpdated) -> None:
 
 
 @router.message(
-    Command("scan"),
-    F.chat.id == settings.group_chat_id,
+    Command("scan", ignore_case=True),
     F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}),
 )
 async def scan_command(message: Message) -> None:
-    if not message.from_user or not await is_group_admin(message.from_user.id):
+    logger.info(
+        "Received /scan in chat_id=%s chat_type=%s from_user=%s sender_chat=%s",
+        message.chat.id,
+        message.chat.type,
+        message.from_user.id if message.from_user else None,
+        message.sender_chat.id if message.sender_chat else None,
+    )
+    if message.chat.id != settings.group_chat_id:
+        await message.answer("Эта команда не разрешена в данной группе.")
+        logger.warning(
+            "Ignored /scan because chat_id=%s differs from configured GROUP_CHAT_ID=%s",
+            message.chat.id,
+            settings.group_chat_id,
+        )
+        return
+    anonymous_admin = (
+        message.from_user is None
+        and message.sender_chat is not None
+        and message.sender_chat.id == message.chat.id
+    )
+    if not anonymous_admin and not await is_group_admin(
+        message.from_user.id if message.from_user else None
+    ):
         await message.answer("Команда доступна только администраторам.")
         return
+    await message.answer("Сканирование запущено!")
     administrators = await bot.get_chat_administrators(settings.group_chat_id)
     for member in administrators:
         await save_telegram_user(member.user)
