@@ -118,7 +118,12 @@ async def scan_command(message: Message) -> None:
         message.sender_chat.id if message.sender_chat else None,
     )
     if message.chat.id != settings.group_chat_id:
-        await message.answer("Эта команда не разрешена в данной группе.")
+        await message.answer(
+            "Эта команда не разрешена в данной группе.\n\n"
+            f"Фактический GROUP_CHAT_ID этой группы: `{message.chat.id}`\n"
+            "Укажи это значение в Render → Environment → GROUP_CHAT_ID "
+            "и перезапусти сервис."
+        )
         logger.warning(
             "Ignored /scan because chat_id=%s differs from configured GROUP_CHAT_ID=%s",
             message.chat.id,
