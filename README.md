@@ -20,6 +20,14 @@ python -m backend.main
 
 The Mini App is configured to use the deployed API at `https://rate-lb-backend.onrender.com`. For local development, run the backend on `http://localhost:8000` and temporarily change `API_BASE_URL` in `index.html`.
 
+The Render web service must run exactly one instance and one Uvicorn worker because Telegram long polling allows only one `getUpdates` consumer per bot token. Use:
+
+```bash
+uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 1
+```
+
+Do not run a second Render service, local polling process, or background worker with the same `BOT_TOKEN`.
+
 ## Bot commands
 
 ```text

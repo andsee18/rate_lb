@@ -9,6 +9,7 @@ from typing import Any
 import uvicorn
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.enums import ChatMemberStatus, ChatType
+from aiogram.exceptions import TelegramConflictError
 from aiogram.filters import Command, CommandObject
 from aiogram.types import ChatMemberUpdated, Message
 from fastapi import FastAPI, Header, HTTPException, Response
@@ -141,6 +142,15 @@ async def scan_command(message: Message) -> None:
         if not message.from_user or message.from_user.id not in settings.admin_ids:
             await message.answer("Личное сканирование доступно только владельцу Rate LB.")
             return
+        try:
+            member = await bot.get_chat_member(settings.group_chat_id, message.from_user.id)
+            if member.status not in {ChatMemberStatus.LEFT, ChatMemberStatus.KICKED}:
+                await save_telegram_user(member.user)
+        except Exception:
+            logger.exception(
+                "Could not add private scan author %s to group users",
+                message.from_user.id if message.from_user else None,
+            )
     elif message.chat.id != settings.group_chat_id:
         await message.answer(
             "Эта команда не разрешена в данной группе.\n\n"
@@ -165,6 +175,8 @@ async def scan_command(message: Message) -> None:
     ):
         await message.answer("Команда доступна только администраторам.")
         return
+    if message.from_user and not message.from_user.is_bot:
+        await save_telegram_user(message.from_user)
     await message.answer("Сканирование запущено!")
     await scan_known_users()
     await message.answer(
@@ -200,6 +212,17 @@ async def rate_command(message: Message, command: CommandObject) -> None:
     await message.answer(f"{user['first_name']} получил оценку {score:.2f} ({get_status(score).label}).")
 
 
+@router.message(
+    F.chat.id == settings.group_chat_id,
+    F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}),
+    F.from_user,
+)
+async def track_group_message(message: Message) -> None:
+    if message.from_user.is_bot:
+        return
+    await save_telegram_user(message.from_user)
+
+
 # Register every handler before polling starts. Keeping this close to startup makes it
 # explicit that no update can arrive before the router is attached to the dispatcher.
 dispatcher.include_router(router)
@@ -208,11 +231,22 @@ dispatcher.include_router(router)
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await bot.delete_webhook(drop_pending_updates=True)
-    polling_task = asyncio.create_task(dispatcher.start_polling(bot))
+
+    async def run_polling() -> None:
+        try:
+            await dispatcher.start_polling(bot, handle_signals=False)
+        except TelegramConflictError:
+            logger.error(
+                "Telegram polling conflict: another process is using this bot token. "
+                "Stop the other instance and run exactly one polling worker."
+            )
+
+    polling_task = asyncio.create_task(run_polling())
     try:
         yield
     finally:
-        await dispatcher.stop_polling()
+        if not polling_task.done():
+            await dispatcher.stop_polling()
         with contextlib.suppress(asyncio.CancelledError):
             await polling_task
         await bot.session.close()
