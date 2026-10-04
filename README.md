@@ -9,6 +9,7 @@ Telegram Mini App, REST API and Telegram bot for a private district rating.
    - `BOT_TOKEN` — bot token;
    - `GROUP_CHAT_ID` — numeric ID of the target group;
    - `ADMIN_IDS` — comma-separated Telegram IDs allowed to run `/scan`, `/rate` and `POST /api/rate`.
+   - `DATABASE_URL` — PostgreSQL connection URI from Supabase, using the Session pooler.
 3. Install dependencies and start the server:
 
 ```bash
@@ -35,7 +36,7 @@ Do not run a second Render service, local polling process, or background worker 
 /rate @username 3.90 Саня Машина
 ```
 
-The bot records users from `new_chat_members` and `chat_member` updates, fetches their latest profile photo through Telegram and stores its `file_id` in SQLite. The frontend receives `/api/avatar/{telegram_id}`, which proxies the image without exposing the bot token.
+The bot records users from `new_chat_members` and `chat_member` updates, fetches their latest profile photo through Telegram and stores its `file_id` in PostgreSQL. The frontend receives `/api/avatar/{telegram_id}`, which proxies the image without exposing the bot token.
 
 Telegram Bot API does not expose a method to enumerate every member of a group. Therefore `/scan` synchronizes administrators and already-known users; regular members are added when they join or when Telegram sends a member/message update to the bot.
 

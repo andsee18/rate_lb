@@ -30,7 +30,7 @@ from backend.rating import get_status
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("rate-lb")
 settings: Settings = load_settings()
-database = Database(settings.database_path)
+database = Database(settings.database_url)
 bot = Bot(settings.bot_token)
 dispatcher = Dispatcher(storage=MemoryStorage())
 router = Router()
@@ -49,6 +49,12 @@ class AddAvatarState(StatesGroup):
 def user_payload(row: dict[str, Any]) -> dict[str, Any]:
     score = row["score"]
     status = get_status(score) if score is not None else None
+    updated_at = row["updated_at"]
+    cache_version = (
+        updated_at.isoformat()
+        if hasattr(updated_at, "isoformat")
+        else str(updated_at).replace(" ", "T")
+    )
     return {
         "id": row["telegram_id"],
         "telegram_id": row["telegram_id"],
@@ -60,7 +66,7 @@ def user_payload(row: dict[str, Any]) -> dict[str, Any]:
         "status_class": status.class_name if status else "status-unrated",
         "avatar_url": (
             f"{settings.public_api_url}/api/avatar/{row['telegram_id']}"
-            f"?v={row['updated_at'].replace(' ', 'T')}"
+            f"?v={cache_version}"
         ),
         "details": None,
     }

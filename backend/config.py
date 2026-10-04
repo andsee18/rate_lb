@@ -18,7 +18,7 @@ class Settings:
     bot_token: str
     group_chat_id: int
     admin_ids: frozenset[int]
-    database_path: str
+    database_url: str
     webapp_origins: list[str]
     public_api_url: str
 
@@ -36,7 +36,7 @@ def load_settings() -> Settings:
         bot_token=required_env("BOT_TOKEN"),
         group_chat_id=int(required_env("GROUP_CHAT_ID")),
         admin_ids=admin_ids,
-        database_path=os.getenv("DATABASE_PATH", "rate_lb.sqlite3"),
+        database_url=required_env("DATABASE_URL"),
         public_api_url=os.getenv(
             "PUBLIC_API_URL",
             "https://rate-lb-backend.onrender.com",

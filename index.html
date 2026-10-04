@@ -226,16 +226,16 @@
         console.error(error);
         leaderboard.innerHTML = '<div class="empty-state error-state">Не удалось загрузить рейтинг. Проверьте, что API-сервер запущен.</div>';
       }
+    }
 
-      async function syncTelegramUser() {
-        const initData = telegram?.initData;
-        if (!initData) return;
-        const response = await fetch(`${API_BASE_URL}/api/users/me`, {
-          method: "POST",
-          headers: { "X-Telegram-Init-Data": initData }
-        });
-        if (!response.ok) throw new Error(`User sync failed: ${response.status}`);
-      }
+    async function syncTelegramUser() {
+      const initData = telegram?.initData;
+      if (!initData) return;
+      const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+        method: "POST",
+        headers: { "X-Telegram-Init-Data": initData }
+      });
+      if (!response.ok) throw new Error(`User sync failed: ${response.status}`);
     }
 
     function openDetails(user) {
