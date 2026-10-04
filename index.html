@@ -53,7 +53,8 @@
     .rank.gold { color: #f6c453; text-shadow: 0 0 15px rgba(246, 196, 83, .35); }
     .rank.silver { color: #c6d0db; }
     .rank.bronze { color: #d98b5f; }
-    .avatar { width: 48px; height: 48px; border: 2px solid rgba(255,255,255,.1); border-radius: 50%; background: #27303b center / cover no-repeat; box-shadow: 0 5px 15px rgba(0,0,0,.2); }
+    .avatar { position: relative; display: grid; place-items: center; width: 48px; height: 48px; overflow: hidden; border: 2px solid rgba(255,255,255,.1); border-radius: 50%; background: var(--avatar-color, #303b49); box-shadow: 0 5px 15px rgba(0,0,0,.2); color: #fff; font-size: 20px; font-weight: 700; }
+    .avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
     .identity { min-width: 0; }
     .name { display: block; overflow: hidden; margin: 0; font-size: 15px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
     .nickname { display: block; overflow: hidden; margin-top: 5px; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
@@ -83,7 +84,8 @@
     .sheet-inner { width: min(100%, 680px); margin: 0 auto; padding: 12px 20px calc(24px + env(safe-area-inset-bottom)); }
     .sheet-handle { width: 38px; height: 4px; margin: 0 auto 22px; border-radius: 99px; background: #4e5968; }
     .sheet-head { display: flex; align-items: center; gap: 13px; padding-bottom: 22px; }
-    .sheet-avatar { width: 58px; height: 58px; flex: 0 0 auto; border-radius: 50%; background: center / cover no-repeat; }
+    .sheet-avatar { width: 58px; height: 58px; flex: 0 0 auto; }
+    .sheet-avatar .avatar { width: 100%; height: 100%; font-size: 23px; }
     .sheet-name { margin: 0 0 5px; font-size: 21px; font-weight: 800; letter-spacing: -.04em; }
     .sheet-nickname { color: var(--muted); font-size: 13px; }
     .sheet-score { margin-left: auto; text-align: right; }
@@ -161,16 +163,26 @@
     let users = { rated: [], unrated: [] };
     let activeView = "unrated";
 
-    function avatarStyle(url) {
-      const avatarUrl = url || "";
-      return `background-image: url("${avatarUrl}"), linear-gradient(145deg, #303b49, #18202a)`;
+    function avatarColor(name) {
+      const palette = ["#398b73", "#4773a8", "#a56a45", "#7956a5", "#9b5268", "#3d8b8d"];
+      const hash = [...String(name || "?")].reduce((total, character) => total + character.charCodeAt(0), 0);
+      return palette[hash % palette.length];
+    }
+
+    function avatarMarkup(url, name) {
+      const initial = escapeHtml(String(name || "?").trim().charAt(0).toUpperCase());
+      const color = avatarColor(name);
+      const image = url
+        ? `<img src="${escapeHtml(url)}" alt="" loading="eager" referrerpolicy="no-referrer" onerror="this.remove()">`
+        : "";
+      return `<span class="avatar" style="--avatar-color: ${color}" aria-label="${escapeHtml(name)}"><span>${initial}</span>${image}</span>`;
     }
 
     function renderUsers() {
       if (activeView === "unrated") {
         leaderboard.innerHTML = users.unrated.length
           ? users.unrated.map((user) => `<div class="unrated-card">
-              <span class="avatar" style="${avatarStyle(user.avatar_url)}" aria-hidden="true"></span>
+              ${avatarMarkup(user.avatar_url, user.name)}
               <span class="identity"><strong class="name">${escapeHtml(user.name)}</strong><span class="username">${user.username ? `@${escapeHtml(user.username)}` : "Telegram-пользователь"}</span></span>
               <span class="status status-unrated">Пока не оценён</span>
             </div>`).join("")
@@ -182,7 +194,7 @@
         const rankClass = position <= 3 ? `rank top ${["gold", "silver", "bronze"][position - 1]}` : "rank";
         return `<button class="user-card" type="button" data-user-id="${user.id}" aria-label="Открыть профиль ${user.name}">
           <span class="${rankClass}">#${position}</span>
-          <span class="avatar" style="${avatarStyle(user.avatar_url)}" aria-hidden="true"></span>
+          ${avatarMarkup(user.avatar_url, user.name)}
           <span class="identity"><strong class="name">${escapeHtml(user.name)}</strong><span class="nickname">${user.nickname ? escapeHtml(user.nickname) : "Без клички"}</span></span>
           <span class="metrics"><strong class="score">${Number(user.score).toFixed(2)}</strong><span class="status ${user.status_class}">${escapeHtml(user.status)}</span></span>
         </button>`;
@@ -218,7 +230,7 @@
 
     function openDetails(user) {
       activeUser = user;
-      document.querySelector("#sheetAvatar").style = avatarStyle(user.avatar_url);
+      document.querySelector("#sheetAvatar").innerHTML = avatarMarkup(user.avatar_url, user.name);
       document.querySelector("#sheetName").textContent = user.name;
       document.querySelector("#sheetNickname").textContent = `${user.nickname || "Без клички"} · ${user.status}`;
       document.querySelector("#sheetScore").textContent = user.score.toFixed(2);

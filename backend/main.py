@@ -80,7 +80,13 @@ async def save_telegram_user(user: Any) -> None:
             logger.warning("Telegram API returned no profile photo for user %s", user.id)
     except Exception:
         logger.exception("Could not load avatar for Telegram user %s", user.id)
-    database.upsert_user(user.id, user.username, user.first_name, avatar_file_id)
+    database.upsert_user(
+        user.id,
+        user.username,
+        user.first_name,
+        avatar_file_id,
+        user.is_bot,
+    )
 
 
 async def is_group_admin(user_id: int | None) -> bool:
@@ -290,6 +296,8 @@ def users() -> dict[str, list[dict[str, Any]]]:
     rated: list[dict[str, Any]] = []
     unrated: list[dict[str, Any]] = []
     for raw_row in database.list_users():
+        if raw_row["is_bot"]:
+            continue
         payload = user_payload(database.row_to_dict(raw_row))
         (unrated if payload["score"] is None else rated).append(payload)
     rated.sort(key=lambda item: item["score"], reverse=True)

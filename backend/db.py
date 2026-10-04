@@ -35,6 +35,7 @@ class Database:
                     nickname TEXT,
                     score REAL,
                     avatar_file_id TEXT,
+                    is_bot INTEGER NOT NULL DEFAULT 0,
                     is_active INTEGER NOT NULL DEFAULT 1,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -44,6 +45,14 @@ class Database:
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_users_score ON users(score DESC)"
             )
+            columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(users)").fetchall()
+            }
+            if "is_bot" not in columns:
+                connection.execute(
+                    "ALTER TABLE users ADD COLUMN is_bot INTEGER NOT NULL DEFAULT 0"
+                )
 
     def upsert_user(
         self,
@@ -51,20 +60,22 @@ class Database:
         username: str | None,
         first_name: str,
         avatar_file_id: str | None = None,
+        is_bot: bool = False,
     ) -> None:
         with self.connection() as connection:
             connection.execute(
                 """
-                INSERT INTO users (telegram_id, username, first_name, avatar_file_id)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO users (telegram_id, username, first_name, avatar_file_id, is_bot)
+                VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(telegram_id) DO UPDATE SET
                     username = excluded.username,
                     first_name = excluded.first_name,
                     avatar_file_id = COALESCE(excluded.avatar_file_id, users.avatar_file_id),
+                    is_bot = excluded.is_bot,
                     is_active = 1,
                     updated_at = CURRENT_TIMESTAMP
                 """,
-                (telegram_id, username, first_name, avatar_file_id),
+                (telegram_id, username, first_name, avatar_file_id, int(is_bot)),
             )
 
     def update_avatar(self, telegram_id: int, avatar_file_id: str) -> None:
