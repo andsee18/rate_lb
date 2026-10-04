@@ -57,6 +57,8 @@ async def save_telegram_user(user: Any) -> None:
         photos = await bot.get_user_profile_photos(user.id, limit=1)
         if photos.total_count and photos.photos:
             avatar_file_id = photos.photos[0][-1].file_id
+        else:
+            logger.info("Telegram user %s has no profile photo", user.id)
     except Exception:
         logger.exception("Could not load avatar for Telegram user %s", user.id)
     database.upsert_user(user.id, user.username, user.first_name, avatar_file_id)
@@ -69,6 +71,23 @@ async def is_group_admin(user_id: int | None) -> bool:
         return True
     member = await bot.get_chat_member(settings.group_chat_id, user_id)
     return member.status in {ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR}
+
+
+async def scan_known_users() -> None:
+    administrators = await bot.get_chat_administrators(settings.group_chat_id)
+    known_users = {member.user.id: member.user for member in administrators}
+    for row in database.list_users():
+        telegram_id = row["telegram_id"]
+        if telegram_id in known_users:
+            continue
+        try:
+            member = await bot.get_chat_member(settings.group_chat_id, telegram_id)
+            if member.status not in {ChatMemberStatus.LEFT, ChatMemberStatus.KICKED}:
+                known_users[telegram_id] = member.user
+        except Exception:
+            logger.exception("Could not refresh group member %s", telegram_id)
+    for user in known_users.values():
+        await save_telegram_user(user)
 
 
 @router.message(
@@ -107,7 +126,7 @@ async def on_chat_member(update: ChatMemberUpdated) -> None:
 
 @router.message(
     Command("scan", ignore_case=True),
-    F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}),
+    F.chat.type.in_({ChatType.PRIVATE, ChatType.GROUP, ChatType.SUPERGROUP}),
 )
 async def scan_command(message: Message) -> None:
     logger.info(
@@ -117,7 +136,12 @@ async def scan_command(message: Message) -> None:
         message.from_user.id if message.from_user else None,
         message.sender_chat.id if message.sender_chat else None,
     )
-    if message.chat.id != settings.group_chat_id:
+    is_private_scan = message.chat.type == ChatType.PRIVATE
+    if is_private_scan:
+        if not message.from_user or message.from_user.id not in settings.admin_ids:
+            await message.answer("Личное сканирование доступно только владельцу Rate LB.")
+            return
+    elif message.chat.id != settings.group_chat_id:
         await message.answer(
             "Эта команда не разрешена в данной группе.\n\n"
             f"Фактический GROUP_CHAT_ID этой группы: `{message.chat.id}`\n"
@@ -131,19 +155,18 @@ async def scan_command(message: Message) -> None:
         )
         return
     anonymous_admin = (
-        message.from_user is None
+        not is_private_scan
+        and message.from_user is None
         and message.sender_chat is not None
         and message.sender_chat.id == message.chat.id
     )
-    if not anonymous_admin and not await is_group_admin(
+    if not is_private_scan and not anonymous_admin and not await is_group_admin(
         message.from_user.id if message.from_user else None
     ):
         await message.answer("Команда доступна только администраторам.")
         return
     await message.answer("Сканирование запущено!")
-    administrators = await bot.get_chat_administrators(settings.group_chat_id)
-    for member in administrators:
-        await save_telegram_user(member.user)
+    await scan_known_users()
     await message.answer(
         "Сканирование завершено. Telegram Bot API не отдаёт полный список участников "
         "группы, поэтому остальные пользователи появятся при вступлении или активности."
