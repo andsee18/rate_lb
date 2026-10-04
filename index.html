@@ -159,7 +159,7 @@
     let activeUser = null;
 
     let users = { rated: [], unrated: [] };
-    let activeView = "rated";
+    let activeView = "unrated";
 
     function avatarStyle(url) {
       const avatarUrl = url || "";
@@ -189,6 +189,16 @@
       }).join("") : '<div class="empty-state">Пока нет оценённых участников. Администратор может использовать команду /rate.</div>';
     }
 
+    function setActiveView(view) {
+      activeView = view;
+      document.querySelectorAll(".tab").forEach((tab) => {
+        const selected = tab.dataset.view === view;
+        tab.classList.toggle("is-active", selected);
+        tab.setAttribute("aria-selected", String(selected));
+      });
+      renderUsers();
+    }
+
     function escapeHtml(value) {
       return String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[character]));
     }
@@ -199,7 +209,7 @@
         const response = await fetch(`${API_BASE_URL}/api/users`, { headers: { Accept: "application/json" } });
         if (!response.ok) throw new Error(`API returned ${response.status}`);
         users = await response.json();
-        renderUsers();
+        setActiveView(users.rated.length ? "rated" : "unrated");
       } catch (error) {
         console.error(error);
         leaderboard.innerHTML = '<div class="empty-state error-state">Не удалось загрузить рейтинг. Проверьте, что API-сервер запущен.</div>';
@@ -236,13 +246,7 @@
       if (user) openDetails(user);
     });
     document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => {
-      activeView = tab.dataset.view;
-      document.querySelectorAll(".tab").forEach((item) => {
-        const selected = item === tab;
-        item.classList.toggle("is-active", selected);
-        item.setAttribute("aria-selected", String(selected));
-      });
-      renderUsers();
+      setActiveView(tab.dataset.view);
     }));
     document.querySelector("#closeSheet").addEventListener("click", closeDetails);
     backdrop.addEventListener("click", closeDetails);
