@@ -148,6 +148,7 @@
   </aside>
 
   <script>
+    const API_BASE_URL = "https://rate-lb-backend.onrender.com";
     const telegram = window.Telegram?.WebApp;
     telegram?.expand();
     telegram?.ready();
@@ -161,7 +162,8 @@
     let activeView = "rated";
 
     function avatarStyle(url) {
-      return `background-image: url("${url}"), linear-gradient(145deg, #303b49, #18202a)`;
+      const avatarUrl = url?.startsWith("/") ? `${API_BASE_URL}${url}` : url;
+      return `background-image: url("${avatarUrl || ""}"), linear-gradient(145deg, #303b49, #18202a)`;
     }
 
     function renderUsers() {
@@ -194,7 +196,7 @@
     async function loadUsers() {
       leaderboard.innerHTML = '<div class="empty-state">Загрузка участников…</div>';
       try {
-        const response = await fetch("/api/users", { headers: { Accept: "application/json" } });
+        const response = await fetch(`${API_BASE_URL}/api/users`, { headers: { Accept: "application/json" } });
         if (!response.ok) throw new Error(`API returned ${response.status}`);
         users = await response.json();
         renderUsers();

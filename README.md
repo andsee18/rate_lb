@@ -18,7 +18,7 @@ pip install -r requirements.txt
 python -m backend.main
 ```
 
-The API and Mini App are available at `http://localhost:8000`. Deploy `index.html` behind the same domain as the API, or set `WEBAPP_ORIGINS` to the frontend origin and change the frontend API base URL.
+The Mini App is configured to use the deployed API at `https://rate-lb-backend.onrender.com`. For local development, run the backend on `http://localhost:8000` and temporarily change `API_BASE_URL` in `index.html`.
 
 ## Bot commands
 

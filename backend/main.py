@@ -8,7 +8,7 @@ from typing import Any
 
 import uvicorn
 from aiogram import Bot, Dispatcher, F, Router
-from aiogram.enums import ChatMemberStatus
+from aiogram.enums import ChatMemberStatus, ChatType
 from aiogram.filters import Command, CommandObject
 from aiogram.types import ChatMemberUpdated, Message
 from fastapi import FastAPI, Header, HTTPException, Response
@@ -26,7 +26,6 @@ database = Database(settings.database_path)
 bot = Bot(settings.bot_token)
 dispatcher = Dispatcher()
 router = Router()
-dispatcher.include_router(router)
 
 
 class RateRequest(BaseModel):
@@ -70,6 +69,20 @@ async def is_group_admin(user_id: int) -> bool:
     return member.status in {ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR}
 
 
+@router.message(
+    Command("start"),
+    F.chat.type.in_({ChatType.PRIVATE, ChatType.GROUP, ChatType.SUPERGROUP}),
+)
+async def start_command(message: Message) -> None:
+    await message.answer(
+        "Привет! Я бот Rate LB.\n\n"
+        "Добавь меня администратором в группу района, чтобы я синхронизировал участников. "
+        "Команда /start поддерживается и для анонимных сообщений администраторов. "
+        "Администраторы могут запустить /scan и оценивать пользователей командой "
+        "/rate @username 3.90 Кличка."
+    )
+
+
 @router.message(F.chat.id == settings.group_chat_id, F.new_chat_members)
 async def on_new_members(message: Message) -> None:
     for user in message.new_chat_members:
@@ -90,9 +103,13 @@ async def on_chat_member(update: ChatMemberUpdated) -> None:
         database.mark_inactive(user.id)
 
 
-@router.message(Command("scan"), F.chat.id == settings.group_chat_id)
+@router.message(
+    Command("scan"),
+    F.chat.id == settings.group_chat_id,
+    F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}),
+)
 async def scan_command(message: Message) -> None:
-    if not await is_group_admin(message.from_user.id):
+    if not message.from_user or not await is_group_admin(message.from_user.id):
         await message.answer("Команда доступна только администраторам.")
         return
     administrators = await bot.get_chat_administrators(settings.group_chat_id)
@@ -104,9 +121,13 @@ async def scan_command(message: Message) -> None:
     )
 
 
-@router.message(Command("rate"), F.chat.id == settings.group_chat_id)
+@router.message(
+    Command("rate"),
+    F.chat.id == settings.group_chat_id,
+    F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}),
+)
 async def rate_command(message: Message, command: CommandObject) -> None:
-    if not await is_group_admin(message.from_user.id):
+    if not message.from_user or not await is_group_admin(message.from_user.id):
         await message.answer("Оценивать участников могут только администраторы.")
         return
     args = (command.args or "").strip()
@@ -125,6 +146,11 @@ async def rate_command(message: Message, command: CommandObject) -> None:
         return
     database.rate_user(user["telegram_id"], score, nickname)
     await message.answer(f"{user['first_name']} получил оценку {score:.2f} ({get_status(score).label}).")
+
+
+# Register every handler before polling starts. Keeping this close to startup makes it
+# explicit that no update can arrive before the router is attached to the dispatcher.
+dispatcher.include_router(router)
 
 
 @asynccontextmanager
