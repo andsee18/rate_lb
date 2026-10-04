@@ -264,6 +264,7 @@
     backdrop.addEventListener("click", closeDetails);
     document.addEventListener("keydown", (event) => { if (event.key === "Escape" && activeUser) closeDetails(); });
     loadUsers();
+    setInterval(loadUsers, 15000);
   </script>
 </body>
 </html>

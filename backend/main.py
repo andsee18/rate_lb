@@ -210,16 +210,30 @@ async def scan_command(message: Message) -> None:
 
 
 @router.message(
-    Command("rate"),
-    F.chat.id == settings.group_chat_id,
-    F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}),
+    Command("rate", ignore_case=True),
+    F.chat.type.in_({ChatType.PRIVATE, ChatType.GROUP, ChatType.SUPERGROUP}),
 )
 async def rate_command(message: Message, command: CommandObject) -> None:
-    if not message.from_user or not await is_group_admin(message.from_user.id):
+    is_private_rate = message.chat.type == ChatType.PRIVATE
+    if is_private_rate:
+        authorized = bool(
+            message.from_user and message.from_user.id in settings.admin_ids
+        )
+    elif message.chat.id == settings.group_chat_id:
+        authorized = bool(
+            message.from_user
+            and await is_group_admin(message.from_user.id)
+        )
+    else:
+        authorized = False
+    if not authorized:
         await message.answer("Оценивать участников могут только администраторы.")
         return
     args = (command.args or "").strip()
-    match = re.match(r"^@?([A-Za-z0-9_]{5,32})\s+([0-9]+(?:[.,][0-9]+)?)(?:\s+(.*))?$", args)
+    match = re.match(
+        r"^@?([A-Za-z0-9_]{5,32})\s+([0-9]+(?:[.,][0-9]+)?)(?:\s+(.+))?$",
+        args,
+    )
     if not match:
         await message.answer("Формат: /rate @username 3.90 Саня Машина")
         return
@@ -230,9 +244,14 @@ async def rate_command(message: Message, command: CommandObject) -> None:
         return
     user = database.find_user_by_username(username)
     if not user:
-        await message.answer("Пользователь ещё не синхронизирован. Пусть напишет сообщение в группе или вступит заново.")
+        await message.answer(
+            f"Пользователь @{username} не найден в базе. "
+            "Попроси его написать сообщение в группе и повтори команду."
+        )
         return
-    database.rate_user(user["telegram_id"], score, nickname)
+    if not database.rate_user(user["telegram_id"], score, nickname):
+        await message.answer("Не удалось сохранить оценку пользователя.")
+        return
     await message.answer(f"{user['first_name']} получил оценку {score:.2f} ({get_status(score).label}).")
 
 
