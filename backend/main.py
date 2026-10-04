@@ -47,7 +47,10 @@ def user_payload(row: dict[str, Any]) -> dict[str, Any]:
         "score": round(score, 2) if score is not None else None,
         "status": status.label if status else "Пока не оценён",
         "status_class": status.class_name if status else "status-unrated",
-        "avatar_url": f"/api/avatar/{row['telegram_id']}",
+        "avatar_url": (
+            f"{settings.public_api_url}/api/avatar/{row['telegram_id']}"
+            f"?v={row['updated_at'].replace(' ', 'T')}"
+        ),
         "details": None,
     }
 
@@ -55,11 +58,26 @@ def user_payload(row: dict[str, Any]) -> dict[str, Any]:
 async def save_telegram_user(user: Any) -> None:
     avatar_file_id = None
     try:
-        photos = await bot.get_user_profile_photos(user.id, limit=1)
-        if photos.total_count and photos.photos:
-            avatar_file_id = photos.photos[0][-1].file_id
-        else:
-            logger.info("Telegram user %s has no profile photo", user.id)
+        for attempt in range(1, 4):
+            photos = await bot.get_user_profile_photos(user.id, limit=1)
+            logger.info(
+                "Profile photos for Telegram user %s: total_count=%s attempt=%s",
+                user.id,
+                photos.total_count,
+                attempt,
+            )
+            if photos.total_count and photos.photos:
+                avatar_file_id = photos.photos[0][-1].file_id
+                logger.info(
+                    "Saved profile photo for Telegram user %s: %s",
+                    user.id,
+                    avatar_file_id,
+                )
+                break
+            if attempt < 3:
+                await asyncio.sleep(0.4)
+        if avatar_file_id is None:
+            logger.warning("Telegram API returned no profile photo for user %s", user.id)
     except Exception:
         logger.exception("Could not load avatar for Telegram user %s", user.id)
     database.upsert_user(user.id, user.username, user.first_name, avatar_file_id)
@@ -299,11 +317,17 @@ async def rate_user(
 async def avatar(telegram_id: int) -> Response:
     row = database.get_user(telegram_id)
     if not row or not row["avatar_file_id"]:
-        return Response(status_code=404)
+        return Response(status_code=404, headers={"Cache-Control": "no-store"})
     file = await bot.get_file(row["avatar_file_id"])
     content = io.BytesIO()
-    await bot.download(file, destination=content)
-    return Response(content=content.getvalue(), media_type="image/jpeg", headers={"Cache-Control": "public, max-age=3600"})
+    await bot.download_file(file.file_path, destination=content)
+    if not content.getvalue():
+        raise HTTPException(status_code=502, detail="Telegram returned an empty avatar")
+    return Response(
+        content=content.getvalue(),
+        media_type="image/jpeg",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 if __name__ == "__main__":

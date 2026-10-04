@@ -20,6 +20,7 @@ class Settings:
     admin_ids: frozenset[int]
     database_path: str
     webapp_origins: list[str]
+    public_api_url: str
 
 
 def load_settings() -> Settings:
@@ -36,6 +37,10 @@ def load_settings() -> Settings:
         group_chat_id=int(required_env("GROUP_CHAT_ID")),
         admin_ids=admin_ids,
         database_path=os.getenv("DATABASE_PATH", "rate_lb.sqlite3"),
+        public_api_url=os.getenv(
+            "PUBLIC_API_URL",
+            "https://rate-lb-backend.onrender.com",
+        ).rstrip("/"),
         webapp_origins=[
             item.strip()
             for item in os.getenv("WEBAPP_ORIGINS", "*").split(",")

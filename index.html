@@ -162,8 +162,8 @@
     let activeView = "rated";
 
     function avatarStyle(url) {
-      const avatarUrl = url?.startsWith("/") ? `${API_BASE_URL}${url}` : url;
-      return `background-image: url("${avatarUrl || ""}"), linear-gradient(145deg, #303b49, #18202a)`;
+      const avatarUrl = url || "";
+      return `background-image: url("${avatarUrl}"), linear-gradient(145deg, #303b49, #18202a)`;
     }
 
     function renderUsers() {
