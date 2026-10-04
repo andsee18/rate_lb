@@ -113,6 +113,18 @@ class Database:
             )
             return result.rowcount == 1
 
+    def set_nickname(self, telegram_id: int, nickname: str) -> bool:
+        with self.connection() as connection:
+            result = connection.execute(
+                """
+                UPDATE users
+                SET nickname = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE telegram_id = ? AND is_active = 1
+                """,
+                (nickname, telegram_id),
+            )
+            return result.rowcount == 1
+
     def find_user_by_username(self, username: str) -> sqlite3.Row | None:
         with self.connection() as connection:
             return connection.execute(

@@ -11,6 +11,9 @@ from aiogram import Bot, Dispatcher, F, Router
 from aiogram.enums import ChatMemberStatus, ChatType
 from aiogram.exceptions import TelegramConflictError
 from aiogram.filters import Command, CommandObject
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import ChatMemberUpdated, Message
 from fastapi import FastAPI, Header, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,7 +28,7 @@ logger = logging.getLogger("rate-lb")
 settings: Settings = load_settings()
 database = Database(settings.database_path)
 bot = Bot(settings.bot_token)
-dispatcher = Dispatcher()
+dispatcher = Dispatcher(storage=MemoryStorage())
 router = Router()
 
 
@@ -33,6 +36,10 @@ class RateRequest(BaseModel):
     telegram_id: int
     score: float = Field(ge=0, le=8)
     nickname: str | None = Field(default=None, max_length=80)
+
+
+class AddAvatarState(StatesGroup):
+    waiting_for_photo = State()
 
 
 def user_payload(row: dict[str, Any]) -> dict[str, Any]:
@@ -120,13 +127,30 @@ async def scan_known_users() -> None:
     F.chat.type.in_({ChatType.PRIVATE, ChatType.GROUP, ChatType.SUPERGROUP}),
 )
 async def start_command(message: Message) -> None:
-    await message.answer(
-        "Привет! Я бот Rate LB.\n\n"
-        "Добавь меня администратором в группу района, чтобы я синхронизировал участников. "
-        "Команда /start поддерживается и для анонимных сообщений администраторов. "
-        "Администраторы могут запустить /scan и оценивать пользователей командой "
-        "/rate @username 3.90 Кличка."
+    await message.answer(help_text("Привет! Я бот Rate LB."))
+
+
+def help_text(prefix: str = "") -> str:
+    return (
+        f"{prefix}\n\n"
+        "Доступные команды:\n"
+        "/start — запустить бота\n"
+        "/help — показать эту справку\n"
+        "/scan — обновить участников и аватарки\n"
+        "/rate @username 3.90 Кличка — выставить оценку\n"
+        "/unrate @username — снять оценку и вернуть в «Пока не оценён»\n"
+        "/add nickname @username — добавить или изменить кличку\n"
+        "/add image @username — заменить аватарку (затем отправить фото)\n"
+        "/cancel — отменить ожидание фотографии"
     )
+
+
+@router.message(
+    Command("help", ignore_case=True),
+    F.chat.type.in_({ChatType.PRIVATE, ChatType.GROUP, ChatType.SUPERGROUP}),
+)
+async def help_command(message: Message) -> None:
+    await message.answer(help_text())
 
 
 @router.message(F.chat.id == settings.group_chat_id, F.new_chat_members)
@@ -292,6 +316,113 @@ async def unrate_command(message: Message, command: CommandObject) -> None:
         f"Оценка {user['first_name']} снята. "
         "Пользователь возвращён в список «Пока не оценён»."
     )
+
+
+@router.message(
+    Command("add", ignore_case=True),
+    F.chat.type == ChatType.PRIVATE,
+)
+async def add_avatar_command(
+    message: Message,
+    command: CommandObject,
+    state: FSMContext,
+) -> None:
+    if not message.from_user or message.from_user.id not in settings.admin_ids:
+        await message.answer("Добавлять аватарки могут только администраторы.")
+        return
+    args = (command.args or "").strip()
+    match = re.fullmatch(r"image\s+@?([A-Za-z0-9_]{5,32})", args, re.IGNORECASE)
+    if not match:
+        await message.answer("Формат: /add image @username")
+        return
+    username = match.group(1)
+    user = database.find_user_by_username(username)
+    if not user:
+        await message.answer(
+            f"Пользователь @{username} не найден в базе. "
+            "Сначала синхронизируй его через сообщение в группе."
+        )
+        return
+    await state.set_state(AddAvatarState.waiting_for_photo)
+    await state.update_data(target_telegram_id=user["telegram_id"])
+    await message.answer(
+        f"Пришлите фотографию для @{user['username'] or username}. "
+        "Отправьте её следующим сообщением."
+    )
+
+
+@router.message(
+    Command("add", ignore_case=True),
+    F.chat.type == ChatType.PRIVATE,
+)
+async def add_nickname_command(
+    message: Message,
+    command: CommandObject,
+) -> None:
+    if not message.from_user or message.from_user.id not in settings.admin_ids:
+        await message.answer("Изменять клички могут только администраторы.")
+        return
+    args = (command.args or "").strip()
+    match = re.fullmatch(r"(.+?)\s+@?([A-Za-z0-9_]{5,32})", args)
+    if not match or match.group(1).strip().lower() == "image":
+        await message.answer("Формат: /add nickname @username")
+        return
+    nickname, username = match.group(1).strip(), match.group(2)
+    if len(nickname) > 80:
+        await message.answer("Кличка не должна быть длиннее 80 символов.")
+        return
+    user = database.find_user_by_username(username)
+    if not user:
+        await message.answer(f"Пользователь @{username} не найден в базе.")
+        return
+    if not database.set_nickname(user["telegram_id"], nickname):
+        await message.answer("Не удалось сохранить кличку.")
+        return
+    await message.answer(
+        f"Кличка «{nickname}» сохранена для {user['first_name']}. "
+        "Оценка и вкладка пользователя не изменены."
+    )
+
+
+@router.message(
+    AddAvatarState.waiting_for_photo,
+    F.chat.type == ChatType.PRIVATE,
+    F.photo,
+)
+async def save_manual_avatar(
+    message: Message,
+    state: FSMContext,
+) -> None:
+    if not message.from_user or message.from_user.id not in settings.admin_ids:
+        await state.clear()
+        await message.answer("Добавлять аватарки могут только администраторы.")
+        return
+    data = await state.get_data()
+    telegram_id = data.get("target_telegram_id")
+    if not telegram_id:
+        await state.clear()
+        await message.answer("Сессия добавления аватарки истекла. Повторите /add image @username.")
+        return
+    photo_file_id = message.photo[-1].file_id
+    database.update_avatar(telegram_id, photo_file_id)
+    await state.clear()
+    await message.answer("Аватарка сохранена. Она появится в Mini App после обновления списка.")
+
+
+@router.message(
+    AddAvatarState.waiting_for_photo,
+    F.chat.type == ChatType.PRIVATE,
+    ~F.photo,
+)
+async def reject_manual_avatar_input(message: Message) -> None:
+    if message.from_user and message.from_user.id in settings.admin_ids:
+        await message.answer("Ожидаю фотографию. Для отмены отправьте /cancel.")
+
+
+@router.message(Command("cancel", ignore_case=True), F.chat.type == ChatType.PRIVATE)
+async def cancel_avatar_command(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    await message.answer("Добавление аватарки отменено.")
 
 
 @router.message(
