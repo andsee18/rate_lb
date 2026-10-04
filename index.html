@@ -226,6 +226,16 @@
         console.error(error);
         leaderboard.innerHTML = '<div class="empty-state error-state">Не удалось загрузить рейтинг. Проверьте, что API-сервер запущен.</div>';
       }
+
+      async function syncTelegramUser() {
+        const initData = telegram?.initData;
+        if (!initData) return;
+        const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+          method: "POST",
+          headers: { "X-Telegram-Init-Data": initData }
+        });
+        if (!response.ok) throw new Error(`User sync failed: ${response.status}`);
+      }
     }
 
     function openDetails(user) {
@@ -263,7 +273,9 @@
     document.querySelector("#closeSheet").addEventListener("click", closeDetails);
     backdrop.addEventListener("click", closeDetails);
     document.addEventListener("keydown", (event) => { if (event.key === "Escape" && activeUser) closeDetails(); });
-    loadUsers();
+    syncTelegramUser()
+      .catch((error) => console.warn("Telegram user sync skipped:", error))
+      .finally(loadUsers);
     setInterval(loadUsers, 15000);
   </script>
 </body>

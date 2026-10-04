@@ -1,10 +1,14 @@
 import asyncio
 import contextlib
+import hashlib
+import hmac
 import io
+import json
 import logging
 import re
 from contextlib import asynccontextmanager
 from typing import Any
+from urllib.parse import parse_qsl
 
 import uvicorn
 from aiogram import Bot, Dispatcher, F, Router
@@ -60,6 +64,35 @@ def user_payload(row: dict[str, Any]) -> dict[str, Any]:
         ),
         "details": None,
     }
+
+
+def telegram_webapp_user(init_data: str) -> dict[str, Any]:
+    fields = dict(parse_qsl(init_data, keep_blank_values=True))
+    received_hash = fields.pop("hash", None)
+    if not received_hash:
+        raise HTTPException(status_code=401, detail="Missing Telegram init data hash")
+    data_check_string = "\n".join(
+        f"{key}={value}" for key, value in sorted(fields.items())
+    )
+    secret_key = hmac.new(
+        b"WebAppData",
+        settings.bot_token.encode(),
+        hashlib.sha256,
+    ).digest()
+    expected_hash = hmac.new(
+        secret_key,
+        data_check_string.encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(received_hash, expected_hash):
+        raise HTTPException(status_code=401, detail="Invalid Telegram init data")
+    try:
+        user = json.loads(fields["user"])
+    except (KeyError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=401, detail="Invalid Telegram user data") from error
+    if not user.get("id") or not user.get("first_name"):
+        raise HTTPException(status_code=401, detail="Incomplete Telegram user data")
+    return user
 
 
 async def save_telegram_user(user: Any) -> None:
@@ -478,6 +511,29 @@ app.add_middleware(
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/api/users/me")
+async def sync_mini_app_user(
+    x_telegram_init_data: str | None = Header(default=None),
+) -> dict[str, Any]:
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=401, detail="Telegram WebApp data required")
+    user = telegram_webapp_user(x_telegram_init_data)
+    await save_telegram_user(
+        type(
+            "TelegramUser",
+            (),
+            {
+                "id": user["id"],
+                "username": user.get("username"),
+                "first_name": user["first_name"],
+                "is_bot": user.get("is_bot", False),
+            },
+        )()
+    )
+    row = database.get_user(user["id"])
+    return user_payload(database.row_to_dict(row))
 
 
 @app.get("/api/users")

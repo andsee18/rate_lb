@@ -45,5 +45,12 @@ Telegram Bot API does not expose a method to enumerate every member of a group. 
 - `GET /api/users` — `{ "rated": [...], "unrated": [...] }`, with rated users sorted from 8.00 to 0.00.
 - `POST /api/rate` — accepts `{ "telegram_id": 123, "score": 3.9, "nickname": "Саня Машина" }` and requires the `X-Admin-Id` header.
 - `GET /api/avatar/{telegram_id}` — cached Telegram profile image proxy.
+- `POST /api/users/me` — validates Telegram Mini App `initData` and adds the current viewer to the unrated list.
+
+For a post button or a direct link to the Mini App, configure the bot's Main Mini App in `@BotFather` and use:
+
+```text
+https://t.me/rate_lb_bot?startapp
+```
 
 # rate_lb
