@@ -48,27 +48,36 @@ class AddAvatarState(StatesGroup):
 
 def user_payload(row: dict[str, Any]) -> dict[str, Any]:
     score = row["score"]
-    status = get_status(score) if score is not None else None
+    gender = row.get("gender", "male")
+    status = get_status(score, gender) if score is not None else None
     updated_at = row["updated_at"]
     cache_version = (
         updated_at.isoformat()
         if hasattr(updated_at, "isoformat")
         else str(updated_at).replace(" ", "T")
     )
+    avatar_version = hashlib.sha1(
+        str(row["avatar_file_id"] or cache_version).encode()
+    ).hexdigest()[:12]
     return {
         "id": row["telegram_id"],
         "telegram_id": row["telegram_id"],
         "username": row["username"],
         "name": row["first_name"],
         "nickname": row["nickname"],
+        "gender": gender,
         "score": round(score, 2) if score is not None else None,
         "status": status.label if status else "Пока не оценён",
         "status_class": status.class_name if status else "status-unrated",
         "avatar_url": (
             f"{settings.public_api_url}/api/avatar/{row['telegram_id']}"
-            f"?v={cache_version}"
+            f"?v={avatar_version}"
         ) if row["avatar_file_id"] else None,
-        "details": None,
+        "details": {
+            "pros": row.get("pros"),
+            "cons": row.get("cons"),
+            "verdict": row.get("verdict"),
+        },
     }
 
 
@@ -178,6 +187,10 @@ def help_text(prefix: str = "") -> str:
         "/scan — обновить участников и аватарки\n"
         "/rate @username 3.90 Кличка — выставить оценку\n"
         "/unrate @username — снять оценку и вернуть в «Пока не оценён»\n"
+        "/gender @username girl|boy — тип шкалы рейтинга\n"
+        "/plus @username текст — добавить плюсы\n"
+        "/minus @username текст — добавить минусы\n"
+        "/verdict @username текст — добавить вердикт\n"
         "/add nickname @username — добавить или изменить кличку\n"
         "/add image @username — заменить аватарку (затем отправить фото)\n"
         "/cancel — отменить ожидание фотографии"
@@ -315,7 +328,10 @@ async def rate_command(message: Message, command: CommandObject) -> None:
     if not database.rate_user(user["telegram_id"], score, nickname):
         await message.answer("Не удалось сохранить оценку пользователя.")
         return
-    await message.answer(f"{user['first_name']} получил оценку {score:.2f} ({get_status(score).label}).")
+    await message.answer(
+        f"{user['first_name']} получил оценку {score:.2f} "
+        f"({get_status(score, user.get('gender', 'male')).label})."
+    )
 
 
 @router.message(
@@ -355,6 +371,52 @@ async def unrate_command(message: Message, command: CommandObject) -> None:
         f"Оценка {user['first_name']} снята. "
         "Пользователь возвращён в список «Пока не оценён»."
     )
+
+
+async def private_admin(message: Message) -> bool:
+    return bool(message.from_user and message.from_user.id in settings.admin_ids)
+
+
+@router.message(
+    Command("gender", ignore_case=True),
+    F.chat.type == ChatType.PRIVATE,
+)
+async def gender_command(message: Message, command: CommandObject) -> None:
+    if not await private_admin(message):
+        await message.answer("Изменять данные могут только администраторы.")
+        return
+    match = re.fullmatch(r"@?([A-Za-z0-9_]{5,32})\s+(girl|female|boy|male)", (command.args or "").strip(), re.IGNORECASE)
+    if not match:
+        await message.answer("Формат: /gender @username girl|boy")
+        return
+    username, raw_gender = match.groups()
+    gender = "female" if raw_gender.lower() in {"girl", "female"} else "male"
+    user = database.find_user_by_username(username)
+    if not user or not database.set_gender(user["telegram_id"], gender):
+        await message.answer("Пользователь не найден или тип шкалы не сохранён.")
+        return
+    await message.answer(f"Для {user['first_name']} включена шкала {'девушек' if gender == 'female' else 'парней'}.")
+
+
+@router.message(
+    Command("plus", "minus", "verdict", ignore_case=True),
+    F.chat.type == ChatType.PRIVATE,
+)
+async def details_command(message: Message, command: CommandObject) -> None:
+    if not await private_admin(message):
+        await message.answer("Изменять данные могут только администраторы.")
+        return
+    match = re.fullmatch(r"@?([A-Za-z0-9_]{5,32})\s+(.+)", (command.args or "").strip(), re.DOTALL)
+    if not match:
+        await message.answer("Формат: /plus @username текст")
+        return
+    username, value = match.groups()
+    field = {"plus": "pros", "minus": "cons", "verdict": "verdict"}[command.command.lower()]
+    user = database.find_user_by_username(username)
+    if not user or not database.set_details(user["telegram_id"], field, value.strip()):
+        await message.answer("Пользователь не найден или данные не сохранены.")
+        return
+    await message.answer(f"Данные для {user['first_name']} сохранены.")
 
 
 @router.message(

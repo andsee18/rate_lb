@@ -29,6 +29,18 @@ uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 1
 
 Do not run a second Render service, local polling process, or background worker with the same `BOT_TOKEN`.
 
+Admin commands in a private chat:
+
+```text
+/gender @username girl
+/gender @username boy
+/plus @username текст
+/minus @username текст
+/verdict @username текст
+```
+
+The female scale uses LTB (3.00–3.49), MTB (3.50–4.99), HTB (5.00–5.49), Stacy (5.50–6.99) and True Eve (7.00–8.00). Sub 3 and Sub 5 are shared by all profiles. Details are stored in PostgreSQL and shown in the participant sheet.
+
 ## Bot commands
 
 ```text

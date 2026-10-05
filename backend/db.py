@@ -24,8 +24,12 @@ class Database:
                     username TEXT,
                     first_name TEXT NOT NULL,
                     nickname TEXT,
+                    gender TEXT NOT NULL DEFAULT 'male',
                     score DOUBLE PRECISION,
                     avatar_file_id TEXT,
+                    pros TEXT,
+                    cons TEXT,
+                    verdict TEXT,
                     is_bot BOOLEAN NOT NULL DEFAULT FALSE,
                     is_active BOOLEAN NOT NULL DEFAULT TRUE,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -35,6 +39,18 @@ class Database:
             )
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_users_score ON users(score DESC)"
+            )
+            connection.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT NOT NULL DEFAULT 'male'"
+            )
+            connection.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS pros TEXT"
+            )
+            connection.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS cons TEXT"
+            )
+            connection.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS verdict TEXT"
             )
             connection.commit()
 
@@ -107,6 +123,32 @@ class Database:
                 WHERE telegram_id = %s AND is_active = TRUE
                 """,
                 (nickname, telegram_id),
+            )
+            return result.rowcount == 1
+
+    def set_gender(self, telegram_id: int, gender: str) -> bool:
+        with self.connection() as connection:
+            result = connection.execute(
+                """
+                UPDATE users
+                SET gender = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE telegram_id = %s AND is_active = TRUE
+                """,
+                (gender, telegram_id),
+            )
+            return result.rowcount == 1
+
+    def set_details(self, telegram_id: int, field: str, value: str | None) -> bool:
+        if field not in {"pros", "cons", "verdict"}:
+            raise ValueError(f"Unsupported details field: {field}")
+        with self.connection() as connection:
+            result = connection.execute(
+                f"""
+                UPDATE users
+                SET {field} = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE telegram_id = %s AND is_active = TRUE
+                """,
+                (value, telegram_id),
             )
             return result.rowcount == 1
 
