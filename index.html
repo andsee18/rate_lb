@@ -195,7 +195,7 @@
 
     function formatScore(value) {
       if (value == null || Number.isNaN(Number(value))) return "—";
-      return String(Number(value));
+      return Number(value).toFixed(1);
     }
 
     function renderUsers() {

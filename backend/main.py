@@ -38,7 +38,7 @@ logger = logging.getLogger("rate-lb")
 
 
 def format_score(value: float) -> str:
-    return f"{value:g}"
+    return f"{value:.1f}"
 
 
 settings: Settings = load_settings()
