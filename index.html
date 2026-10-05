@@ -88,7 +88,7 @@
     .bottom-sheet { position: fixed; z-index: 11; right: 0; bottom: 0; left: 0; max-height: min(82vh, 680px); overflow: auto; touch-action: pan-y; border: 1px solid var(--line); border-bottom: 0; border-radius: 24px 24px 0 0; background: #12161e; transform: translateY(105%); transition: transform .3s cubic-bezier(.2,.8,.2,1); }
     .bottom-sheet.is-open { transform: translateY(0); }
     .sheet-inner { width: min(100%, 680px); margin: 0 auto; padding: 12px 20px calc(24px + env(safe-area-inset-bottom)); }
-    .sheet-handle { width: 38px; height: 4px; margin: 0 auto 22px; border-radius: 99px; background: #4e5968; }
+    .sheet-handle { width: 38px; height: 4px; margin: 0 auto 22px; border-radius: 99px; background: #4e5968; touch-action: none; }
     .sheet-head { display: flex; align-items: center; gap: 13px; padding-bottom: 22px; }
     .sheet-avatar { width: 58px; height: 58px; flex: 0 0 auto; }
     .sheet-avatar .avatar { width: 100%; height: 100%; font-size: 23px; }
@@ -320,28 +320,49 @@
       setActiveView(tab.dataset.view);
     }));
     backdrop.addEventListener("click", closeDetails);
+    const sheetHandle = document.querySelector(".sheet-handle");
     let sheetTouchStartY = 0;
     let sheetTouchCurrentY = 0;
-    let sheetPointerId = null;
-    sheet.addEventListener("pointerdown", (event) => {
-      if (event.pointerType !== "touch") return;
-      sheetPointerId = event.pointerId;
-      sheetTouchStartY = event.clientY;
-      sheetTouchCurrentY = event.clientY;
-      sheet.setPointerCapture(event.pointerId);
-    });
-    sheet.addEventListener("pointermove", (event) => {
-      if (event.pointerId === sheetPointerId) sheetTouchCurrentY = event.clientY;
-    });
-    sheet.addEventListener("pointerup", (event) => {
-      if (event.pointerId !== sheetPointerId) return;
-      if (sheetTouchCurrentY - sheetTouchStartY > 70) closeDetails();
-      sheet.releasePointerCapture(event.pointerId);
-      sheetPointerId = null;
-    });
-    sheet.addEventListener("pointercancel", () => {
-      sheetPointerId = null;
-    });
+    let sheetTouchDragging = false;
+
+    function resetSheetDrag() {
+      sheetTouchDragging = false;
+      sheet.style.transform = "";
+      sheet.style.transition = "";
+    }
+
+    sheetHandle.addEventListener("touchstart", (event) => {
+      if (!activeUser || event.touches.length !== 1) return;
+      sheetTouchStartY = event.touches[0].clientY;
+      sheetTouchCurrentY = sheetTouchStartY;
+      sheetTouchDragging = true;
+      sheet.style.transition = "none";
+    }, { passive: true });
+
+    sheetHandle.addEventListener("touchmove", (event) => {
+      if (!sheetTouchDragging || event.touches.length !== 1) return;
+      sheetTouchCurrentY = event.touches[0].clientY;
+      const offset = Math.max(0, sheetTouchCurrentY - sheetTouchStartY);
+      if (offset > 0) {
+        event.preventDefault();
+        sheet.style.transform = `translateY(${offset}px)`;
+      }
+    }, { passive: false });
+
+    sheetHandle.addEventListener("touchend", () => {
+      if (!sheetTouchDragging) return;
+      const offset = sheetTouchCurrentY - sheetTouchStartY;
+      if (offset > 70) {
+        resetSheetDrag();
+        closeDetails();
+      } else {
+        sheet.style.transition = "transform .22s cubic-bezier(.2,.8,.2,1)";
+        sheet.style.transform = "translateY(0)";
+        window.setTimeout(resetSheetDrag, 240);
+      }
+    }, { passive: true });
+
+    sheetHandle.addEventListener("touchcancel", resetSheetDrag, { passive: true });
     document.addEventListener("keydown", (event) => { if (event.key === "Escape" && activeUser) closeDetails(); });
     const hasCachedUsers = restoreCachedUsers();
     loadUsers(!hasCachedUsers);
