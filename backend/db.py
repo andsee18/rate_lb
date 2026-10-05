@@ -171,17 +171,16 @@ class Database:
             "harmony_score", "eyes_score", "hair_score",
         )
         values = [parameters[column] for column in columns]
-        score = sum(values) / len(values)
         with self.connection() as connection:
             result = connection.execute(
                 """
                 UPDATE users
                 SET symmetry_score = %s, jaw_score = %s, skin_score = %s,
                     harmony_score = %s, eyes_score = %s, hair_score = %s,
-                    score = %s, updated_at = CURRENT_TIMESTAMP
+                    updated_at = CURRENT_TIMESTAMP
                 WHERE telegram_id = %s AND is_active = TRUE
                 """,
-                (*values, score, telegram_id),
+                (*values, telegram_id),
             )
             return result.rowcount == 1
 

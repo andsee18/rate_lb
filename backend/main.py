@@ -464,8 +464,9 @@ async def params_command(message: Message, command: CommandObject) -> None:
         "6. Причёска\n\n"
         "Можно и коротко в одну строку:\n"
         "/params @username 4.5 5.6 5.2 4.8 5.0 5.8\n"
-        "Шкала каждого параметра: от 0.00 до 8.00. "
-        "Средний балл посчитается автоматически."
+        "Шкала каждого параметра: от 0.00 до 8.00.\n"
+        "Важно: /params сохраняет только параметры. "
+        "Средний балл и статус меняются только через /rate."
     )
     compact_match = re.fullmatch(
         r"@?([A-Za-z0-9_]{5,32})"
@@ -529,7 +530,10 @@ async def params_command(message: Message, command: CommandObject) -> None:
     if not user or not database.set_parameters(user["telegram_id"], parameters):
         await message.answer("Пользователь не найден или данные не сохранены.")
         return
-    await message.answer(f"Параметры {user['first_name']} сохранены. Средний балл: {sum(parameters.values()) / 6:.2f}.")
+    await message.answer(
+        f"Параметры {user['first_name']} сохранены. "
+        "Средний балл не изменён — для него используй /rate."
+    )
 
 
 @router.message(
