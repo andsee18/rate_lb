@@ -62,7 +62,7 @@ ADMIN_COMMANDS = PUBLIC_COMMANDS + [
     BotCommand(command="rate", description="Оценить участника"),
     BotCommand(command="unrate", description="Снять оценку"),
     BotCommand(command="gender", description="Выбрать шкалу парня или девушки"),
-    BotCommand(command="params", description="Сохранить параметры и средний балл"),
+    BotCommand(command="params", description="6 параметров и средний балл"),
     BotCommand(command="add", description="Добавить кличку или аватарку"),
     BotCommand(command="cancel", description="Отменить действие"),
 ]
@@ -232,7 +232,7 @@ def help_text(prefix: str = "") -> str:
         "/unrate @username\n"
         "/gender @username girl — женская шкала\n"
         "/gender @username boy — мужская шкала\n"
-        "/params @username — сохранить 6 параметров и средний балл\n"
+        "/params @username — 6 параметров и средний балл\n"
         "/add nickname @username — изменить кличку\n"
         "/add image @username — заменить фото, затем отправить изображение\n"
         "/scan — синхронизировать участников и аватарки"
@@ -445,34 +445,85 @@ async def params_command(message: Message, command: CommandObject) -> None:
     if not await private_admin(message):
         await message.answer("Изменять данные могут только администраторы.")
         return
-    match = re.match(r"@?([A-Za-z0-9_]{5,32})\s*\n(.+)", (command.args or "").strip(), re.DOTALL)
-    if not match:
-        await message.answer(
-            "Формат:\n/params @username\n"
-            "Симметрия: 5.4\nЧелюсть: 4.3\nКожа: 5.9\n"
-            "Гармония: 4.8\nВзгляд: 5.0\nПричёска: 5.8"
+    args = (command.args or "").strip()
+    usage = (
+        "Шаблон /params:\n"
+        "/params @username\n"
+        "Симметрия лица: 4.5\n"
+        "Линия челюсти: 5.6\n"
+        "Состояние кожи: 5.2\n"
+        "Гармония черт: 4.8\n"
+        "Взгляд и глаза: 5.0\n"
+        "Причёска: 5.8\n\n"
+        "Порядок параметров:\n"
+        "1. Симметрия лица\n"
+        "2. Линия челюсти\n"
+        "3. Состояние кожи\n"
+        "4. Гармония черт\n"
+        "5. Взгляд и глаза\n"
+        "6. Причёска\n\n"
+        "Можно и коротко в одну строку:\n"
+        "/params @username 4.5 5.6 5.2 4.8 5.0 5.8\n"
+        "Шкала каждого параметра: от 0.00 до 8.00. "
+        "Средний балл посчитается автоматически."
+    )
+    compact_match = re.fullmatch(
+        r"@?([A-Za-z0-9_]{5,32})"
+        r"\s+([0-8](?:[.,]\d+)?)"
+        r"(?:\s+([0-8](?:[.,]\d+)?)){5}",
+        args,
+    )
+    if compact_match:
+        compact_parts = args.split()
+        username = compact_parts[0].lstrip("@")
+        compact_values = [
+            float(value.replace(",", "."))
+            for value in compact_parts[1:]
+        ]
+        parameters = dict(
+            zip(
+                (
+                    "symmetry_score",
+                    "jaw_score",
+                    "skin_score",
+                    "harmony_score",
+                    "eyes_score",
+                    "hair_score",
+                ),
+                compact_values,
+            )
         )
-        return
-    username, raw_values = match.groups()
-    labels = {
-        "симметрия": "symmetry_score", "симметрия лица": "symmetry_score",
-        "челюсть": "jaw_score", "линия челюсти": "jaw_score",
-        "кожа": "skin_score", "состояние кожи": "skin_score",
-        "гармония": "harmony_score", "гармония черт": "harmony_score",
-        "взгляд": "eyes_score", "взгляд и глаза": "eyes_score",
-        "прическа": "hair_score", "причёска": "hair_score",
-    }
-    parameters: dict[str, float] = {}
-    for line in raw_values.splitlines():
-        value_match = re.fullmatch(r"\s*([^:]+):\s*([0-8](?:[.,]\d+)?)\s*", line)
-        if value_match:
-            label, raw_score = value_match.groups()
-            column = labels.get(label.strip().lower())
-            if column:
-                parameters[column] = float(raw_score.replace(",", "."))
+    else:
+        match = re.match(r"@?([A-Za-z0-9_]{5,32})\s*\n(.+)", args, re.DOTALL)
+        if not match:
+            await message.answer(usage)
+            return
+        username, raw_values = match.groups()
+        labels = {
+            "симметрия": "symmetry_score", "симметрия лица": "symmetry_score",
+            "челюсть": "jaw_score", "линия челюсти": "jaw_score",
+            "кожа": "skin_score", "состояние кожи": "skin_score",
+            "гармония": "harmony_score", "гармония черт": "harmony_score",
+            "взгляд": "eyes_score", "взгляд и глаза": "eyes_score",
+            "прическа": "hair_score", "причёска": "hair_score",
+        }
+        parameters: dict[str, float] = {}
+        for line in raw_values.splitlines():
+            value_match = re.fullmatch(r"\s*([^:]+):\s*([0-8](?:[.,]\d+)?)\s*", line)
+            if value_match:
+                label, raw_score = value_match.groups()
+                column = labels.get(label.strip().lower())
+                if column:
+                    parameters[column] = float(raw_score.replace(",", "."))
     required = {"symmetry_score", "jaw_score", "skin_score", "harmony_score", "eyes_score", "hair_score"}
     if set(parameters) != required:
-        await message.answer("Нужно указать все 6 параметров: Симметрия, Челюсть, Кожа, Гармония, Взгляд, Причёска.")
+        await message.answer(
+            "Нужно указать ровно 6 параметров. Используй /params без данных, "
+            "чтобы получить готовый шаблон."
+        )
+        return
+    if any(not 0 <= value <= 8 for value in parameters.values()):
+        await message.answer("Каждый параметр должен быть от 0.00 до 8.00.")
         return
     user = database.find_user_by_username(username)
     if not user or not database.set_parameters(user["telegram_id"], parameters):
