@@ -85,7 +85,7 @@
 
     .sheet-backdrop { position: fixed; z-index: 10; inset: 0; background: rgba(0, 0, 0, .68); opacity: 0; pointer-events: none; transition: opacity .25s ease; }
     .sheet-backdrop.is-open { opacity: 1; pointer-events: auto; }
-    .bottom-sheet { position: fixed; z-index: 11; right: 0; bottom: 0; left: 0; max-height: min(82vh, 680px); overflow: auto; border: 1px solid var(--line); border-bottom: 0; border-radius: 24px 24px 0 0; background: #12161e; transform: translateY(105%); transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+    .bottom-sheet { position: fixed; z-index: 11; right: 0; bottom: 0; left: 0; max-height: min(82vh, 680px); overflow: auto; touch-action: pan-y; border: 1px solid var(--line); border-bottom: 0; border-radius: 24px 24px 0 0; background: #12161e; transform: translateY(105%); transition: transform .3s cubic-bezier(.2,.8,.2,1); }
     .bottom-sheet.is-open { transform: translateY(0); }
     .sheet-inner { width: min(100%, 680px); margin: 0 auto; padding: 12px 20px calc(24px + env(safe-area-inset-bottom)); }
     .sheet-handle { width: 38px; height: 4px; margin: 0 auto 22px; border-radius: 99px; background: #4e5968; }
@@ -101,6 +101,7 @@
     .detail-block { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); }
     .detail-label { margin-bottom: 8px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
     .detail-block p { margin: 0; font-size: 14px; line-height: 1.5; }
+    .sheet-status { display: inline-block; margin-left: 6px; color: #fff; font-size: 11px; font-weight: 900; letter-spacing: .04em; text-transform: none; }
     .parameter-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; color: var(--muted); font-size: 13px; }
     .parameter-row + .parameter-row { border-top: 1px solid rgba(255,255,255,.06); }
     .parameter-row strong { color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; }
@@ -108,7 +109,6 @@
     .detail-block.pros .detail-label { color: #52d696; }
     .detail-block.cons { border-color: rgba(223, 129, 70, .18); }
     .detail-block.cons .detail-label { color: #df8146; }
-    .close-sheet { width: 100%; margin-top: 16px; padding: 13px; border: 0; border-radius: 12px; background: #242b36; color: var(--text); font-size: 13px; font-weight: 750; cursor: pointer; }
     @media (min-width: 600px) { .app-shell { padding-top: 42px; } .detail-grid { grid-template-columns: 1fr 1fr; } .detail-block.verdict { grid-column: 1 / -1; } }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
   </style>
@@ -153,7 +153,6 @@
         <div class="detail-block parameters"><div class="detail-label">Параметры внешности</div><div id="sheetParameters"></div></div>
         <div class="detail-block verdict"><div class="detail-label">Вердикт <span id="sheetStatus"></span></div><p id="sheetVerdict"></p></div>
       </div>
-      <button class="close-sheet" id="closeSheet" type="button">Закрыть</button>
     </div>
   </aside>
 
@@ -293,7 +292,9 @@
       document.querySelector("#sheetParameters").innerHTML = parameters
         .map(([label, value]) => `<div class="parameter-row"><span>${label}</span><strong>${value == null ? "—" : Number(value).toFixed(2)}</strong></div>`)
         .join("");
-      document.querySelector("#sheetStatus").textContent = user.status;
+      const sheetStatus = document.querySelector("#sheetStatus");
+      sheetStatus.textContent = user.status;
+      sheetStatus.className = "sheet-status";
       document.querySelector("#sheetVerdict").textContent = user.details?.verdict || `Средний балл сформирован по шести параметрам.`;
       sheet.classList.add("is-open");
       backdrop.classList.add("is-open");
@@ -318,8 +319,29 @@
     document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => {
       setActiveView(tab.dataset.view);
     }));
-    document.querySelector("#closeSheet").addEventListener("click", closeDetails);
     backdrop.addEventListener("click", closeDetails);
+    let sheetTouchStartY = 0;
+    let sheetTouchCurrentY = 0;
+    let sheetPointerId = null;
+    sheet.addEventListener("pointerdown", (event) => {
+      if (event.pointerType !== "touch") return;
+      sheetPointerId = event.pointerId;
+      sheetTouchStartY = event.clientY;
+      sheetTouchCurrentY = event.clientY;
+      sheet.setPointerCapture(event.pointerId);
+    });
+    sheet.addEventListener("pointermove", (event) => {
+      if (event.pointerId === sheetPointerId) sheetTouchCurrentY = event.clientY;
+    });
+    sheet.addEventListener("pointerup", (event) => {
+      if (event.pointerId !== sheetPointerId) return;
+      if (sheetTouchCurrentY - sheetTouchStartY > 70) closeDetails();
+      sheet.releasePointerCapture(event.pointerId);
+      sheetPointerId = null;
+    });
+    sheet.addEventListener("pointercancel", () => {
+      sheetPointerId = null;
+    });
     document.addEventListener("keydown", (event) => { if (event.key === "Escape" && activeUser) closeDetails(); });
     const hasCachedUsers = restoreCachedUsers();
     loadUsers(!hasCachedUsers);
