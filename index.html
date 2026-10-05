@@ -191,6 +191,11 @@
       return `<span class="avatar" style="--avatar-color: ${color}" aria-label="${escapeHtml(name)}"><span>${initial}</span>${image}</span>`;
     }
 
+    function formatScore(value) {
+      if (value == null || Number.isNaN(Number(value))) return "—";
+      return String(Number(value));
+    }
+
     function renderUsers() {
       if (activeView === "unrated") {
         leaderboard.innerHTML = users.unrated.length
@@ -209,7 +214,7 @@
           <span class="${rankClass}">#${position}</span>
           ${avatarMarkup(user.avatar_url, user.name)}
           <span class="identity"><strong class="name">${escapeHtml(user.name)}</strong><span class="nickname">${user.nickname ? escapeHtml(user.nickname) : "Без клички"}</span></span>
-          <span class="metrics"><strong class="score">${Number(user.score).toFixed(2)}</strong><span class="status ${user.status_class}">${escapeHtml(user.status)}</span></span>
+          <span class="metrics"><strong class="score">${formatScore(user.score)}</strong><span class="status ${user.status_class}">${escapeHtml(user.status)}</span></span>
         </button>`;
       }).join("") : '<div class="empty-state">Пока нет оценённых участников. Администратор может использовать команду /rate.</div>';
     }
@@ -280,7 +285,7 @@
       document.querySelector("#sheetAvatar").innerHTML = avatarMarkup(user.avatar_url, user.name);
       document.querySelector("#sheetName").textContent = user.name;
       document.querySelector("#sheetNickname").textContent = `${user.nickname || "Без клички"} · ${user.status}`;
-      document.querySelector("#sheetScore").textContent = user.score.toFixed(2);
+      document.querySelector("#sheetScore").textContent = formatScore(user.score);
       const parameters = [
         ["Симметрия лица", user.details?.parameters?.symmetry],
         ["Линия челюсти", user.details?.parameters?.jaw],
@@ -290,7 +295,7 @@
         ["Причёска", user.details?.parameters?.hair],
       ];
       document.querySelector("#sheetParameters").innerHTML = parameters
-        .map(([label, value]) => `<div class="parameter-row"><span>${label}</span><strong>${value == null ? "—" : Number(value).toFixed(2)}</strong></div>`)
+        .map(([label, value]) => `<div class="parameter-row"><span>${label}</span><strong>${formatScore(value)}</strong></div>`)
         .join("");
       const sheetStatus = document.querySelector("#sheetStatus");
       sheetStatus.textContent = user.status;

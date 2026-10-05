@@ -49,7 +49,7 @@ The female scale uses LTB (3.00–3.49), MTB (3.50–4.99), HTB (5.00–5.49), S
 
 ```text
 /scan
-/rate @username 3.90 Саня Машина
+/rate @username 3.9 Саня Машина
 ```
 
 The bot records users from `new_chat_members` and `chat_member` updates, fetches their latest profile photo through Telegram and stores its `file_id` in PostgreSQL. The frontend receives `/api/avatar/{telegram_id}`, which proxies the image without exposing the bot token.
@@ -59,7 +59,7 @@ Telegram Bot API does not expose a method to enumerate every member of a group. 
 ## API
 
 - `GET /api/health` — health check.
-- `GET /api/users` — `{ "rated": [...], "unrated": [...] }`, with rated users sorted from 8.00 to 0.00.
+- `GET /api/users` — `{ "rated": [...], "unrated": [...] }`, with rated users sorted from 8 to 0.
 - `POST /api/rate` — accepts `{ "telegram_id": 123, "score": 3.9, "nickname": "Саня Машина" }` and requires the `X-Admin-Id` header.
 - `GET /api/avatar/{telegram_id}` — cached Telegram profile image proxy.
 - `POST /api/users/me` — validates Telegram Mini App `initData` and adds the current viewer to the unrated list.

@@ -35,6 +35,12 @@ from backend.rating import get_status
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("rate-lb")
+
+
+def format_score(value: float) -> str:
+    return f"{value:g}"
+
+
 settings: Settings = load_settings()
 database = Database(settings.database_url)
 bot = Bot(settings.bot_token)
@@ -222,13 +228,13 @@ def help_text(prefix: str = "") -> str:
         "/start — запустить бота\n"
         "/help — показать эту справку\n"
         "/scan — обновить участников и аватарки\n"
-        "/rate @username 3.90 Кличка — выставить оценку\n"
+        "/rate @username 3.9 Кличка — выставить оценку\n"
         "/unrate @username — снять оценку и вернуть в «Пока не оценён»\n"
         "/add nickname @username — добавить или изменить кличку\n"
         "/add image @username — заменить аватарку (затем отправить фото)\n"
         "/cancel — отменить ожидание фотографии\n\n"
         "Команды администратора в личке:\n"
-        "/rate @username 3.90 Кличка\n"
+        "/rate @username 3.9 Кличка\n"
         "/unrate @username\n"
         "/gender @username girl — женская шкала\n"
         "/gender @username boy — мужская шкала\n"
@@ -353,12 +359,12 @@ async def rate_command(message: Message, command: CommandObject) -> None:
         args,
     )
     if not match:
-        await message.answer("Формат: /rate @username 3.90 Саня Машина")
+        await message.answer("Формат: /rate @username 3.9 Саня Машина")
         return
     username, raw_score, nickname = match.groups()
     score = float(raw_score.replace(",", "."))
     if not 0 <= score <= 8:
-        await message.answer("Оценка должна быть от 0.00 до 8.00.")
+        await message.answer("Оценка должна быть от 0 до 8.")
         return
     user = database.find_user_by_username(username)
     if not user:
@@ -371,7 +377,7 @@ async def rate_command(message: Message, command: CommandObject) -> None:
         await message.answer("Не удалось сохранить оценку пользователя.")
         return
     await message.answer(
-        f"{user['first_name']} получил оценку {score:.2f} "
+        f"{user['first_name']} получил оценку {format_score(score)} "
         f"({get_status(score, user.get('gender', 'male')).label})."
     )
 
@@ -464,7 +470,7 @@ async def params_command(message: Message, command: CommandObject) -> None:
         "6. Причёска\n\n"
         "Можно и коротко в одну строку:\n"
         "/params @username 4.5 5.6 5.2 4.8 5.0 5.8\n"
-        "Шкала каждого параметра: от 0.00 до 8.00.\n"
+        "Шкала каждого параметра: от 0 до 8.\n"
         "Важно: /params сохраняет только параметры. "
         "Средний балл и статус меняются только через /rate."
     )
@@ -524,7 +530,7 @@ async def params_command(message: Message, command: CommandObject) -> None:
         )
         return
     if any(not 0 <= value <= 8 for value in parameters.values()):
-        await message.answer("Каждый параметр должен быть от 0.00 до 8.00.")
+        await message.answer("Каждый параметр должен быть от 0 до 8.")
         return
     user = database.find_user_by_username(username)
     if not user or not database.set_parameters(user["telegram_id"], parameters):
