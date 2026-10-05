@@ -18,7 +18,13 @@ from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import ChatMemberUpdated, Message
+from aiogram.types import (
+    BotCommand,
+    BotCommandScopeChat,
+    BotCommandScopeDefault,
+    ChatMemberUpdated,
+    Message,
+)
 from fastapi import FastAPI, Header, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -44,6 +50,33 @@ class RateRequest(BaseModel):
 
 class AddAvatarState(StatesGroup):
     waiting_for_photo = State()
+
+
+PUBLIC_COMMANDS = [
+    BotCommand(command="start", description="Запустить бота"),
+    BotCommand(command="help", description="Показать справку"),
+]
+
+ADMIN_COMMANDS = PUBLIC_COMMANDS + [
+    BotCommand(command="scan", description="Сканировать чат и добавить участников"),
+    BotCommand(command="rate", description="Оценить участника"),
+    BotCommand(command="unrate", description="Снять оценку"),
+    BotCommand(command="gender", description="Выбрать шкалу парня или девушки"),
+    BotCommand(command="plus", description="Добавить плюсы"),
+    BotCommand(command="minus", description="Добавить минусы"),
+    BotCommand(command="verdict", description="Добавить вердикт"),
+    BotCommand(command="add", description="Добавить кличку или аватарку"),
+    BotCommand(command="cancel", description="Отменить действие"),
+]
+
+
+async def configure_bot_commands() -> None:
+    await bot.set_my_commands(PUBLIC_COMMANDS, scope=BotCommandScopeDefault())
+    for admin_id in settings.admin_ids:
+        await bot.set_my_commands(
+            ADMIN_COMMANDS,
+            scope=BotCommandScopeChat(chat_id=admin_id),
+        )
 
 
 def user_payload(row: dict[str, Any]) -> dict[str, Any]:
@@ -547,6 +580,7 @@ dispatcher.include_router(router)
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await bot.delete_webhook(drop_pending_updates=True)
+    await configure_bot_commands()
 
     async def run_polling() -> None:
         try:
