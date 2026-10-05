@@ -571,7 +571,7 @@ async def rate_user(
 async def avatar(telegram_id: int) -> Response:
     row = database.get_user(telegram_id)
     if not row or not row["avatar_file_id"]:
-        return Response(status_code=404, headers={"Cache-Control": "no-store"})
+        return Response(status_code=404, headers={"Cache-Control": "public, max-age=300"})
     file = await bot.get_file(row["avatar_file_id"])
     content = io.BytesIO()
     await bot.download_file(file.file_path, destination=content)
@@ -580,7 +580,7 @@ async def avatar(telegram_id: int) -> Response:
     return Response(
         content=content.getvalue(),
         media_type="image/jpeg",
-        headers={"Cache-Control": "no-store"},
+        headers={"Cache-Control": "public, max-age=86400"},
     )
 
 
