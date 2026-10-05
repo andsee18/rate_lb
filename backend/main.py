@@ -49,7 +49,7 @@ router = Router()
 
 
 class RateRequest(BaseModel):
-    telegram_id: int
+    telegram_id: int = Field(gt=0)
     score: float = Field(ge=0, le=8)
     nickname: str | None = Field(default=None, max_length=80)
 
@@ -66,6 +66,7 @@ PUBLIC_COMMANDS = [
 ADMIN_COMMANDS = PUBLIC_COMMANDS + [
     BotCommand(command="scan", description="Сканировать чат и добавить участников"),
     BotCommand(command="rate", description="Оценить участника"),
+    BotCommand(command="id", description="Показать Telegram ID участника"),
     BotCommand(command="unrate", description="Снять оценку"),
     BotCommand(command="gender", description="Выбрать шкалу парня или девушки"),
     BotCommand(command="params", description="6 параметров и средний балл"),
@@ -229,16 +230,22 @@ def help_text(prefix: str = "") -> str:
         "/help — показать эту справку\n"
         "/scan — обновить участников и аватарки\n"
         "/rate @username 3.9 Кличка — выставить оценку\n"
+        "/rate TELEGRAM_ID 3.9 Кличка — можно без username\n"
+        "/rate 123456789 3.9 Кличка — выставить по Telegram ID\n"
+        "/id Имя Фамилия — найти Telegram ID в базе\n"
         "/unrate @username — снять оценку и вернуть в «Пока не оценён»\n"
         "/add nickname @username — добавить или изменить кличку\n"
         "/add image @username — заменить аватарку (затем отправить фото)\n"
         "/cancel — отменить ожидание фотографии\n\n"
         "Команды администратора в личке:\n"
         "/rate @username 3.9 Кличка\n"
+        "/rate 123456789 3.9 Кличка — можно без username\n"
+        "/id Имя Фамилия — найти Telegram ID в базе\n"
         "/unrate @username\n"
         "/gender @username girl — женская шкала\n"
         "/gender @username boy — мужская шкала\n"
         "/params @username — 6 параметров и средний балл\n"
+        "/add id TELEGRAM_ID Имя — добавить участника без username\n"
         "/add nickname @username — изменить кличку\n"
         "/add image @username — заменить фото, затем отправить изображение\n"
         "/scan — синхронизировать участников и аватарки"
@@ -355,22 +362,45 @@ async def rate_command(message: Message, command: CommandObject) -> None:
         return
     args = (command.args or "").strip()
     match = re.match(
-        r"^@?([A-Za-z0-9_]{5,32})\s+([0-9]+(?:[.,][0-9]+)?)(?:\s+(.+))?$",
+        r"^(.+?)\s+([0-9]+(?:[.,][0-9]+)?)(?:\s+(.+))?$",
         args,
     )
     if not match:
-        await message.answer("Формат: /rate @username 3.9 Саня Машина")
+        await message.answer(
+            "Формат: /rate @username 3.9 Саня Машина\n"
+            "или: /rate Имя Фамилия 3.9 Саня Машина"
+        )
         return
-    username, raw_score, nickname = match.groups()
+    target, raw_score, nickname = match.groups()
     score = float(raw_score.replace(",", "."))
     if not 0 <= score <= 8:
         await message.answer("Оценка должна быть от 0 до 8.")
         return
-    user = database.find_user_by_username(username)
+    if target.isdigit():
+        telegram_id = int(target)
+        user = database.get_user(telegram_id)
+        if not user:
+            database.create_placeholder_user(telegram_id)
+            user = database.get_user(telegram_id)
+    elif target.startswith("@") or re.fullmatch(r"[A-Za-z0-9_]{5,32}", target):
+        username = target.lstrip("@")
+        user = database.find_user_by_username(username)
+    else:
+        matches = database.find_users_by_name(target)
+        if len(matches) > 1:
+            candidates = "\n".join(
+                f"• {item['first_name']} — `{item['telegram_id']}`"
+                for item in matches
+            )
+            await message.answer(
+                f"Найдено несколько людей с именем «{target}»:\n{candidates}\n"
+                "Используй /rate TELEGRAM_ID 4.2"
+            )
+            return
+        user = matches[0] if matches else None
     if not user:
         await message.answer(
-            f"Пользователь @{username} не найден в базе. "
-            "Попроси его написать сообщение в группе и повтори команду."
+            "Не удалось найти или создать запись для этого пользователя."
         )
         return
     if not database.rate_user(user["telegram_id"], score, nickname):
@@ -379,6 +409,51 @@ async def rate_command(message: Message, command: CommandObject) -> None:
     await message.answer(
         f"{user['first_name']} получил оценку {format_score(score)} "
         f"({get_status(score, user.get('gender', 'male')).label})."
+    )
+
+
+@router.message(
+    Command("id", ignore_case=True),
+    F.chat.type.in_({ChatType.PRIVATE, ChatType.GROUP, ChatType.SUPERGROUP}),
+)
+async def id_command(message: Message, command: CommandObject) -> None:
+    authorized = (
+        await private_admin(message)
+        if message.chat.type == ChatType.PRIVATE
+        else message.chat.id == settings.group_chat_id
+        and bool(message.from_user)
+        and await is_group_admin(message.from_user.id)
+    )
+    if not authorized:
+        await message.answer("Команда доступна только администраторам.")
+        return
+    if message.reply_to_message and message.reply_to_message.from_user:
+        user = message.reply_to_message.from_user
+        await message.answer(
+            f"{user.full_name} — Telegram ID: `{user.id}`\n"
+            f"Команда для рейтинга: `/rate {user.id} 4.0`"
+        )
+        return
+    name = (command.args or "").strip()
+    if not name:
+        await message.answer(
+            "Способы узнать ID:\n"
+            "1. Ответь командой /id на сообщение участника.\n"
+            "2. Или: /id Имя Фамилия"
+        )
+        return
+    matches = database.find_users_by_name(name)
+    if not matches:
+        await message.answer(
+            f"Участник с именем «{name}» не найден в базе. "
+            "Если известен ID, используй /rate TELEGRAM_ID 4.0."
+        )
+        return
+    await message.answer(
+        "\n".join(
+            f"{item['first_name']} — Telegram ID: `{item['telegram_id']}`"
+            for item in matches
+        )
     )
 
 
@@ -555,6 +630,26 @@ async def add_command(
         await message.answer("Изменять данные могут только администраторы.")
         return
     args = (command.args or "").strip()
+    id_match = re.fullmatch(
+        r"id\s+([1-9]\d{3,14})(?:\s+(.+))?",
+        args,
+        re.IGNORECASE,
+    )
+    if id_match:
+        telegram_id = int(id_match.group(1))
+        first_name = (id_match.group(2) or "").strip() or None
+        if first_name and len(first_name) > 128:
+            await message.answer("Имя не должно быть длиннее 128 символов.")
+            return
+        database.create_placeholder_user(telegram_id, first_name)
+        user = database.get_user(telegram_id)
+        display_name = f" как «{user['first_name']}»" if user else ""
+        await message.answer(
+            f"Участник добавлен по ID `{telegram_id}`"
+            f"{display_name}.\n"
+            f"Теперь можно использовать: `/rate {telegram_id} 4.0`"
+        )
+        return
     image_match = re.fullmatch(
         r"image\s+@?([A-Za-z0-9_]{5,32})",
         args,
@@ -583,6 +678,7 @@ async def add_command(
     else:
         await message.answer(
             "Форматы:\n"
+            "/add id TELEGRAM_ID Имя\n"
             "/add nickname @username\n"
             "/add image @username"
         )
@@ -747,6 +843,8 @@ async def rate_user(
         admin_id = 0
     if admin_id not in settings.admin_ids:
         raise HTTPException(status_code=403, detail="Admin access required")
+    if not database.get_user(request.telegram_id):
+        database.create_placeholder_user(request.telegram_id)
     if not database.rate_user(request.telegram_id, request.score, request.nickname):
         raise HTTPException(status_code=404, detail="User not found")
     row = database.get_user(request.telegram_id)

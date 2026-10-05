@@ -115,6 +115,30 @@ class Database:
             )
             return result.rowcount == 1
 
+    def create_placeholder_user(
+        self,
+        telegram_id: int,
+        first_name: str | None = None,
+    ) -> None:
+        """Create a rating target before Telegram has provided its user object."""
+        display_name = first_name or f"Telegram ID {telegram_id}"
+        with self.connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO users (telegram_id, first_name)
+                VALUES (%s, %s)
+                ON CONFLICT (telegram_id) DO UPDATE SET
+                    first_name = CASE
+                        WHEN users.first_name = CONCAT('Telegram ID ', users.telegram_id)
+                        THEN EXCLUDED.first_name
+                        ELSE users.first_name
+                    END,
+                    is_active = TRUE,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (telegram_id, display_name),
+            )
+
     def unrate_user(self, telegram_id: int) -> bool:
         with self.connection() as connection:
             result = connection.execute(
@@ -193,6 +217,17 @@ class Database:
                 """,
                 (username.lstrip("@"),),
             ).fetchone()
+
+    def find_users_by_name(self, name: str) -> list[dict[str, Any]]:
+        with self.connection() as connection:
+            return connection.execute(
+                """
+                SELECT * FROM users
+                WHERE lower(first_name) = lower(%s) AND is_active = TRUE
+                ORDER BY telegram_id
+                """,
+                (name.strip(),),
+            ).fetchall()
 
     def get_user(self, telegram_id: int) -> dict[str, Any] | None:
         with self.connection() as connection:
