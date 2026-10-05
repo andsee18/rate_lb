@@ -50,9 +50,9 @@
     .user-card:hover { border-color: rgba(71, 167, 255, .35); background: var(--surface-raised); }
     .rank { color: var(--muted); font-size: 14px; font-weight: 700; text-align: center; }
     .rank.top { font-size: 20px; font-weight: 900; letter-spacing: -.08em; }
-    .rank.gold { color: #f6c453; text-shadow: 0 0 15px rgba(246, 196, 83, .35); }
-    .rank.silver { color: #c6d0db; }
-    .rank.bronze { color: #d98b5f; }
+    .rank.gold { color: #d8ae58; text-shadow: 0 0 15px rgba(216, 174, 88, .22); }
+    .rank.silver { color: #aeb9c5; }
+    .rank.bronze { color: #bd8060; }
     .avatar { position: relative; display: grid; place-items: center; width: 48px; height: 48px; overflow: hidden; border: 2px solid rgba(255,255,255,.1); border-radius: 50%; background: var(--avatar-color, #303b49); box-shadow: 0 5px 15px rgba(0,0,0,.2); color: #fff; font-size: 20px; font-weight: 700; }
     .avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .16s ease; }
     .avatar img.is-loaded { opacity: 1; }
@@ -62,19 +62,19 @@
     .metrics { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
     .score { font-size: 17px; font-weight: 850; letter-spacing: -.04em; }
     .status { display: inline-flex; align-items: center; min-height: 20px; padding: 3px 7px; border-radius: 6px; font-size: 9px; font-weight: 850; letter-spacing: .07em; white-space: nowrap; }
-    /* The scale reads from light bronze through silver and gold into red elite tiers. */
-    .status-true-adam { color: #ffe8ec; border: 1px solid #d14c68; background: linear-gradient(135deg, #8f1838, #5c0d28); box-shadow: 0 0 18px rgba(151, 20, 58, .42); }
-    .status-true-eve { color: #ffe8f4; border: 1px solid #d14c8a; background: linear-gradient(135deg, #8f185c, #5c0d3d); box-shadow: 0 0 18px rgba(151, 20, 94, .42); }
-    .status-chad { color: #ffe4e2; border: 1px solid #d65a58; background: #8f292d; }
-    .status-stacy { color: #ffe4e2; border: 1px solid #d65a8a; background: #8f294f; }
-    .status-htn { color: #fff1c4; border: 1px solid #b18a37; background: #6f5318; }
-    .status-htb { color: #fff1c4; border: 1px solid #b18a63; background: #72502a; }
-    .status-mtn { color: #16202b; border: 1px solid #b8c4cf; background: #b7c2cc; }
-    .status-mtb { color: #16202b; border: 1px solid #c4b8cf; background: #b9adca; }
-    .status-ltn { color: #e2e7ec; border: 1px solid #66727e; background: #454e59; }
-    .status-ltb { color: #e2e7ec; border: 1px solid #78677e; background: #514454; }
-    .status-sub-5 { color: #2d1a0e; border: 1px solid #d4935b; background: #a9683a; }
-    .status-sub-3 { color: #3e2717; border: 1px solid #e1a66e; background: #c98852; }
+    /* The scale reads from muted bronze through graphite, silver and gold into deep red elite tiers. */
+    .status-true-adam { color: #f6dfe4; border: 1px solid #a8445c; background: linear-gradient(135deg, #741d37, #4e1429); box-shadow: 0 0 16px rgba(116, 29, 55, .3); }
+    .status-true-eve { color: #f6e1eb; border: 1px solid #a84b78; background: linear-gradient(135deg, #741d50, #4e1438); box-shadow: 0 0 16px rgba(116, 29, 80, .3); }
+    .status-chad { color: #f4d9d8; border: 1px solid #ad4b4d; background: #762f34; }
+    .status-stacy { color: #f4dbe5; border: 1px solid #ad4b72; background: #762f50; }
+    .status-htn { color: #f2e4bc; border: 1px solid #9b7c3e; background: #5e4a22; }
+    .status-htb { color: #f2e4c6; border: 1px solid #9b7950; background: #60472a; }
+    .status-mtn { color: #e4e9ee; border: 1px solid #8997a5; background: #697683; }
+    .status-mtb { color: #e8e4eb; border: 1px solid #91889d; background: #70677a; }
+    .status-ltn { color: #cbd3dc; border: 1px solid #526170; background: #37434f; }
+    .status-ltb { color: #d2cad6; border: 1px solid #66556a; background: #44394a; }
+    .status-sub-5 { color: #eed8c7; border: 1px solid #a66c4d; background: #784b36; }
+    .status-sub-3 { color: #f0dfcf; border: 1px solid #b9825d; background: #956448; }
     .status-unrated { color: #c6d0db; border: 1px solid #536170; background: #252d38; }
     .unrated-card { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
     .unrated-card .avatar { width: 42px; height: 42px; }
