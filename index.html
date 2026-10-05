@@ -320,49 +320,62 @@
       setActiveView(tab.dataset.view);
     }));
     backdrop.addEventListener("click", closeDetails);
-    const sheetHandle = document.querySelector(".sheet-handle");
     let sheetTouchStartY = 0;
+    let sheetTouchStartX = 0;
     let sheetTouchCurrentY = 0;
     let sheetTouchDragging = false;
+    let sheetTouchTracking = false;
 
     function resetSheetDrag() {
       sheetTouchDragging = false;
+      sheetTouchTracking = false;
       sheet.style.transform = "";
       sheet.style.transition = "";
     }
 
-    sheetHandle.addEventListener("touchstart", (event) => {
+    sheet.addEventListener("touchstart", (event) => {
       if (!activeUser || event.touches.length !== 1) return;
       sheetTouchStartY = event.touches[0].clientY;
+      sheetTouchStartX = event.touches[0].clientX;
       sheetTouchCurrentY = sheetTouchStartY;
-      sheetTouchDragging = true;
-      sheet.style.transition = "none";
+      sheetTouchTracking = true;
     }, { passive: true });
 
-    sheetHandle.addEventListener("touchmove", (event) => {
-      if (!sheetTouchDragging || event.touches.length !== 1) return;
-      sheetTouchCurrentY = event.touches[0].clientY;
-      const offset = Math.max(0, sheetTouchCurrentY - sheetTouchStartY);
-      if (offset > 0) {
-        event.preventDefault();
-        sheet.style.transform = `translateY(${offset}px)`;
+    sheet.addEventListener("touchmove", (event) => {
+      if (!sheetTouchTracking || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      const deltaY = touch.clientY - sheetTouchStartY;
+      const deltaX = touch.clientX - sheetTouchStartX;
+      if (!sheetTouchDragging) {
+        if (Math.abs(deltaY) < 8 || Math.abs(deltaY) <= Math.abs(deltaX)) return;
+        if (deltaY <= 0 || sheet.scrollTop > 0) {
+          sheetTouchTracking = false;
+          return;
+        }
+        sheetTouchDragging = true;
+        sheet.style.transition = "none";
       }
+      sheetTouchCurrentY = touch.clientY;
+      event.preventDefault();
+      sheet.style.transform = `translateY(${Math.max(0, deltaY)}px)`;
     }, { passive: false });
 
-    sheetHandle.addEventListener("touchend", () => {
-      if (!sheetTouchDragging) return;
+    sheet.addEventListener("touchend", () => {
+      if (!sheetTouchTracking) return;
       const offset = sheetTouchCurrentY - sheetTouchStartY;
-      if (offset > 70) {
+      if (sheetTouchDragging && offset > 70) {
         resetSheetDrag();
         closeDetails();
-      } else {
+      } else if (sheetTouchDragging) {
         sheet.style.transition = "transform .22s cubic-bezier(.2,.8,.2,1)";
         sheet.style.transform = "translateY(0)";
         window.setTimeout(resetSheetDrag, 240);
+      } else {
+        resetSheetDrag();
       }
     }, { passive: true });
 
-    sheetHandle.addEventListener("touchcancel", resetSheetDrag, { passive: true });
+    sheet.addEventListener("touchcancel", resetSheetDrag, { passive: true });
     document.addEventListener("keydown", (event) => { if (event.key === "Escape" && activeUser) closeDetails(); });
     const hasCachedUsers = restoreCachedUsers();
     loadUsers(!hasCachedUsers);
