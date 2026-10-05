@@ -97,13 +97,13 @@
     .sheet-nickname { color: var(--muted); font-size: 13px; }
     .sheet-score { margin-left: auto; text-align: right; }
     .sheet-score strong { display: block; font-size: 25px; letter-spacing: -.06em; }
-    .sheet-score span { color: var(--muted); font-size: 10px; text-transform: uppercase; }
+    .sheet-score .sheet-status { margin-top: 6px; }
+    .sheet-score > span:not(.sheet-status) { color: var(--muted); font-size: 10px; text-transform: uppercase; }
     .detail-grid { display: grid; gap: 10px; }
     .detail-block { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); }
     .detail-label { margin-bottom: 8px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
     .detail-block p { margin: 0; font-size: 14px; line-height: 1.5; }
-    .verdict-status { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 800; }
-    .sheet-status { display: inline-block; padding: 4px 8px; border: 1px solid rgba(255,255,255,.16); border-radius: 6px; color: #fff; background: rgba(255,255,255,.08); font-size: 11px; font-weight: 900; letter-spacing: .04em; text-transform: none; }
+    .sheet-status { justify-content: center; font-size: 9px; }
     .parameter-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; color: var(--muted); font-size: 13px; }
     .parameter-row + .parameter-row { border-top: 1px solid rgba(255,255,255,.06); }
     .parameter-row strong { color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; }
@@ -150,11 +150,14 @@
           <h2 class="sheet-name" id="sheetName"></h2>
           <div class="sheet-nickname" id="sheetNickname"></div>
         </div>
-        <div class="sheet-score"><strong id="sheetScore"></strong><span>средний балл</span></div>
+        <div class="sheet-score">
+          <strong id="sheetScore"></strong>
+          <span id="sheetStatus" class="status sheet-status"></span>
+          <span>средний балл</span>
+        </div>
       </div>
       <div class="detail-grid">
         <div class="detail-block parameters"><div class="detail-label">Параметры внешности</div><div id="sheetParameters"></div></div>
-        <div class="detail-block verdict"><div class="verdict-status">Вердикт <span id="sheetStatus" class="sheet-status"></span></div></div>
       </div>
     </div>
   </aside>
@@ -302,6 +305,7 @@
         .join("");
       const sheetStatus = document.querySelector("#sheetStatus");
       sheetStatus.textContent = user.status;
+      sheetStatus.className = `status sheet-status ${user.status_class}`;
       sheet.classList.add("is-open");
       backdrop.classList.add("is-open");
       sheet.setAttribute("aria-hidden", "false");
