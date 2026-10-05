@@ -97,11 +97,11 @@
     .sheet-nickname { color: var(--muted); font-size: 13px; }
     .sheet-score { margin-left: auto; text-align: right; }
     .sheet-score strong { display: block; font-size: 25px; letter-spacing: -.06em; }
-    .sheet-score .sheet-status { margin-top: 6px; }
     .sheet-score > span:not(.sheet-status) { color: var(--muted); font-size: 10px; text-transform: uppercase; }
     .detail-grid { display: grid; gap: 10px; }
     .detail-block { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); }
-    .detail-label { margin-bottom: 8px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    .detail-label { margin-bottom: 8px; color: var(--text); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    .parameters-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .detail-block p { margin: 0; font-size: 14px; line-height: 1.5; }
     .sheet-status { justify-content: center; font-size: 9px; }
     .parameter-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; color: var(--muted); font-size: 13px; }
@@ -152,12 +152,17 @@
         </div>
         <div class="sheet-score">
           <strong id="sheetScore"></strong>
-          <span id="sheetStatus" class="status sheet-status"></span>
           <span>средний балл</span>
         </div>
       </div>
       <div class="detail-grid">
-        <div class="detail-block parameters"><div class="detail-label">Параметры внешности</div><div id="sheetParameters"></div></div>
+        <div class="detail-block parameters">
+          <div class="parameters-heading">
+            <div class="detail-label">Параметры внешности</div>
+            <span id="sheetStatus" class="status sheet-status"></span>
+          </div>
+          <div id="sheetParameters"></div>
+        </div>
       </div>
     </div>
   </aside>
