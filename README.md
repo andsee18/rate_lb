@@ -34,9 +34,13 @@ Admin commands in a private chat:
 ```text
 /gender @username girl
 /gender @username boy
-/plus @username текст
-/minus @username текст
-/verdict @username текст
+/params @username
+Симметрия: 5.4
+Челюсть: 4.3
+Кожа: 5.9
+Гармония: 4.8
+Взгляд: 5.0
+Причёска: 5.8
 ```
 
 The female scale uses LTB (3.00–3.49), MTB (3.50–4.99), HTB (5.00–5.49), Stacy (5.50–6.99) and True Eve (7.00–8.00). Sub 3 and Sub 5 are shared by all profiles. Details are stored in PostgreSQL and shown in the participant sheet.

@@ -27,6 +27,12 @@ class Database:
                     gender TEXT NOT NULL DEFAULT 'male',
                     score DOUBLE PRECISION,
                     avatar_file_id TEXT,
+                    symmetry_score DOUBLE PRECISION,
+                    jaw_score DOUBLE PRECISION,
+                    skin_score DOUBLE PRECISION,
+                    harmony_score DOUBLE PRECISION,
+                    eyes_score DOUBLE PRECISION,
+                    hair_score DOUBLE PRECISION,
                     pros TEXT,
                     cons TEXT,
                     verdict TEXT,
@@ -52,6 +58,13 @@ class Database:
             connection.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS verdict TEXT"
             )
+            for column in (
+                "symmetry_score", "jaw_score", "skin_score",
+                "harmony_score", "eyes_score", "hair_score",
+            ):
+                connection.execute(
+                    f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {column} DOUBLE PRECISION"
+                )
             connection.commit()
 
     def upsert_user(
@@ -149,6 +162,26 @@ class Database:
                 WHERE telegram_id = %s AND is_active = TRUE
                 """,
                 (value, telegram_id),
+            )
+            return result.rowcount == 1
+
+    def set_parameters(self, telegram_id: int, parameters: dict[str, float]) -> bool:
+        columns = (
+            "symmetry_score", "jaw_score", "skin_score",
+            "harmony_score", "eyes_score", "hair_score",
+        )
+        values = [parameters[column] for column in columns]
+        score = sum(values) / len(values)
+        with self.connection() as connection:
+            result = connection.execute(
+                """
+                UPDATE users
+                SET symmetry_score = %s, jaw_score = %s, skin_score = %s,
+                    harmony_score = %s, eyes_score = %s, hair_score = %s,
+                    score = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE telegram_id = %s AND is_active = TRUE
+                """,
+                (*values, score, telegram_id),
             )
             return result.rowcount == 1
 

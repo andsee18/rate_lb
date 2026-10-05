@@ -62,9 +62,7 @@ ADMIN_COMMANDS = PUBLIC_COMMANDS + [
     BotCommand(command="rate", description="Оценить участника"),
     BotCommand(command="unrate", description="Снять оценку"),
     BotCommand(command="gender", description="Выбрать шкалу парня или девушки"),
-    BotCommand(command="plus", description="Добавить плюсы"),
-    BotCommand(command="minus", description="Добавить минусы"),
-    BotCommand(command="verdict", description="Добавить вердикт"),
+    BotCommand(command="params", description="Сохранить параметры и средний балл"),
     BotCommand(command="add", description="Добавить кличку или аватарку"),
     BotCommand(command="cancel", description="Отменить действие"),
 ]
@@ -107,8 +105,14 @@ def user_payload(row: dict[str, Any]) -> dict[str, Any]:
             f"?v={avatar_version}"
         ) if row["avatar_file_id"] else None,
         "details": {
-            "pros": row.get("pros"),
-            "cons": row.get("cons"),
+            "parameters": {
+                "symmetry": row.get("symmetry_score"),
+                "jaw": row.get("jaw_score"),
+                "skin": row.get("skin_score"),
+                "harmony": row.get("harmony_score"),
+                "eyes": row.get("eyes_score"),
+                "hair": row.get("hair_score"),
+            },
             "verdict": row.get("verdict"),
         },
     }
@@ -228,9 +232,7 @@ def help_text(prefix: str = "") -> str:
         "/unrate @username\n"
         "/gender @username girl — женская шкала\n"
         "/gender @username boy — мужская шкала\n"
-        "/plus @username текст — сохранить плюсы\n"
-        "/minus @username текст — сохранить минусы\n"
-        "/verdict @username текст — сохранить вердикт\n"
+        "/params @username — сохранить 6 параметров и средний балл\n"
         "/add nickname @username — изменить кличку\n"
         "/add image @username — заменить фото, затем отправить изображение\n"
         "/scan — синхронизировать участников и аватарки"
@@ -438,25 +440,45 @@ async def gender_command(message: Message, command: CommandObject) -> None:
     await message.answer(f"Для {user['first_name']} включена шкала {'девушек' if gender == 'female' else 'парней'}.")
 
 
-@router.message(
-    Command("plus", "minus", "verdict", ignore_case=True),
-    F.chat.type == ChatType.PRIVATE,
-)
-async def details_command(message: Message, command: CommandObject) -> None:
+@router.message(Command("params", ignore_case=True), F.chat.type == ChatType.PRIVATE)
+async def params_command(message: Message, command: CommandObject) -> None:
     if not await private_admin(message):
         await message.answer("Изменять данные могут только администраторы.")
         return
-    match = re.fullmatch(r"@?([A-Za-z0-9_]{5,32})\s+(.+)", (command.args or "").strip(), re.DOTALL)
+    match = re.match(r"@?([A-Za-z0-9_]{5,32})\s*\n(.+)", (command.args or "").strip(), re.DOTALL)
     if not match:
-        await message.answer("Формат: /plus @username текст")
+        await message.answer(
+            "Формат:\n/params @username\n"
+            "Симметрия: 5.4\nЧелюсть: 4.3\nКожа: 5.9\n"
+            "Гармония: 4.8\nВзгляд: 5.0\nПричёска: 5.8"
+        )
         return
-    username, value = match.groups()
-    field = {"plus": "pros", "minus": "cons", "verdict": "verdict"}[command.command.lower()]
+    username, raw_values = match.groups()
+    labels = {
+        "симметрия": "symmetry_score", "симметрия лица": "symmetry_score",
+        "челюсть": "jaw_score", "линия челюсти": "jaw_score",
+        "кожа": "skin_score", "состояние кожи": "skin_score",
+        "гармония": "harmony_score", "гармония черт": "harmony_score",
+        "взгляд": "eyes_score", "взгляд и глаза": "eyes_score",
+        "прическа": "hair_score", "причёска": "hair_score",
+    }
+    parameters: dict[str, float] = {}
+    for line in raw_values.splitlines():
+        value_match = re.fullmatch(r"\s*([^:]+):\s*([0-8](?:[.,]\d+)?)\s*", line)
+        if value_match:
+            label, raw_score = value_match.groups()
+            column = labels.get(label.strip().lower())
+            if column:
+                parameters[column] = float(raw_score.replace(",", "."))
+    required = {"symmetry_score", "jaw_score", "skin_score", "harmony_score", "eyes_score", "hair_score"}
+    if set(parameters) != required:
+        await message.answer("Нужно указать все 6 параметров: Симметрия, Челюсть, Кожа, Гармония, Взгляд, Причёска.")
+        return
     user = database.find_user_by_username(username)
-    if not user or not database.set_details(user["telegram_id"], field, value.strip()):
+    if not user or not database.set_parameters(user["telegram_id"], parameters):
         await message.answer("Пользователь не найден или данные не сохранены.")
         return
-    await message.answer(f"Данные для {user['first_name']} сохранены.")
+    await message.answer(f"Параметры {user['first_name']} сохранены. Средний балл: {sum(parameters.values()) / 6:.2f}.")
 
 
 @router.message(

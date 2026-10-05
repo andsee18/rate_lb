@@ -101,6 +101,9 @@
     .detail-block { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); }
     .detail-label { margin-bottom: 8px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
     .detail-block p { margin: 0; font-size: 14px; line-height: 1.5; }
+    .parameter-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; color: var(--muted); font-size: 13px; }
+    .parameter-row + .parameter-row { border-top: 1px solid rgba(255,255,255,.06); }
+    .parameter-row strong { color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; }
     .detail-block.pros { border-color: rgba(82, 214, 150, .18); }
     .detail-block.pros .detail-label { color: #52d696; }
     .detail-block.cons { border-color: rgba(223, 129, 70, .18); }
@@ -147,9 +150,8 @@
         <div class="sheet-score"><strong id="sheetScore"></strong><span>средний балл</span></div>
       </div>
       <div class="detail-grid">
-        <div class="detail-block pros"><div class="detail-label">Плюсы</div><p id="sheetPros"></p></div>
-        <div class="detail-block cons"><div class="detail-label">Минусы</div><p id="sheetCons"></p></div>
-        <div class="detail-block verdict"><div class="detail-label">Вердикт клуба</div><p id="sheetVerdict"></p></div>
+        <div class="detail-block parameters"><div class="detail-label">Параметры внешности</div><div id="sheetParameters"></div></div>
+        <div class="detail-block verdict"><div class="detail-label">Вердикт <span id="sheetStatus"></span></div><p id="sheetVerdict"></p></div>
       </div>
       <button class="close-sheet" id="closeSheet" type="button">Закрыть</button>
     </div>
@@ -280,9 +282,19 @@
       document.querySelector("#sheetName").textContent = user.name;
       document.querySelector("#sheetNickname").textContent = `${user.nickname || "Без клички"} · ${user.status}`;
       document.querySelector("#sheetScore").textContent = user.score.toFixed(2);
-      document.querySelector("#sheetPros").textContent = user.details?.pros || "Данные появятся после расширения профиля участника.";
-      document.querySelector("#sheetCons").textContent = user.details?.cons || "Пока дополнительных комментариев нет.";
-      document.querySelector("#sheetVerdict").textContent = user.details?.verdict || `Участник получил статус ${user.status}.`;
+      const parameters = [
+        ["Симметрия лица", user.details?.parameters?.symmetry],
+        ["Линия челюсти", user.details?.parameters?.jaw],
+        ["Состояние кожи", user.details?.parameters?.skin],
+        ["Гармония черт", user.details?.parameters?.harmony],
+        ["Взгляд и глаза", user.details?.parameters?.eyes],
+        ["Причёска", user.details?.parameters?.hair],
+      ];
+      document.querySelector("#sheetParameters").innerHTML = parameters
+        .map(([label, value]) => `<div class="parameter-row"><span>${label}</span><strong>${value == null ? "—" : Number(value).toFixed(2)}</strong></div>`)
+        .join("");
+      document.querySelector("#sheetStatus").textContent = user.status;
+      document.querySelector("#sheetVerdict").textContent = user.details?.verdict || `Средний балл сформирован по шести параметрам.`;
       sheet.classList.add("is-open");
       backdrop.classList.add("is-open");
       sheet.setAttribute("aria-hidden", "false");
