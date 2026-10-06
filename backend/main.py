@@ -50,7 +50,7 @@ router = Router()
 
 class RateRequest(BaseModel):
     telegram_id: int = Field(gt=0)
-    score: float = Field(ge=0, le=8)
+    score: float = Field(ge=0, le=10)
     nickname: str | None = Field(default=None, max_length=80)
 
 
@@ -373,8 +373,8 @@ async def rate_command(message: Message, command: CommandObject) -> None:
         return
     target, raw_score, nickname = match.groups()
     score = float(raw_score.replace(",", "."))
-    if not 0 <= score <= 8:
-        await message.answer("Оценка должна быть от 0 до 8.")
+    if not 0 <= score <= 10:
+        await message.answer("Оценка должна быть от 0 до 10.")
         return
     if target.isdigit():
         telegram_id = int(target)
@@ -545,14 +545,14 @@ async def params_command(message: Message, command: CommandObject) -> None:
         "6. Причёска\n\n"
         "Можно и коротко в одну строку:\n"
         "/params @username 4.5 5.6 5.2 4.8 5.0 5.8\n"
-        "Шкала каждого параметра: от 0 до 8.\n"
+        "Шкала каждого параметра: от 0 до 10.\n"
         "Важно: /params сохраняет только параметры. "
         "Средний балл и статус меняются только через /rate."
     )
     compact_match = re.fullmatch(
         r"@?([A-Za-z0-9_]{5,32})"
-        r"\s+([0-8](?:[.,]\d+)?)"
-        r"(?:\s+([0-8](?:[.,]\d+)?)){5}",
+        r"\s+(10(?:[.,]\d+)?|[0-9](?:[.,]\d+)?)"
+        r"(?:\s+(10(?:[.,]\d+)?|[0-9](?:[.,]\d+)?)){5}",
         args,
     )
     if compact_match:
@@ -591,7 +591,10 @@ async def params_command(message: Message, command: CommandObject) -> None:
         }
         parameters: dict[str, float] = {}
         for line in raw_values.splitlines():
-            value_match = re.fullmatch(r"\s*([^:]+):\s*([0-8](?:[.,]\d+)?)\s*", line)
+            value_match = re.fullmatch(
+                r"\s*([^:]+):\s*(10(?:[.,]\d+)?|[0-9](?:[.,]\d+)?)\s*",
+                line,
+            )
             if value_match:
                 label, raw_score = value_match.groups()
                 column = labels.get(label.strip().lower())
@@ -604,8 +607,8 @@ async def params_command(message: Message, command: CommandObject) -> None:
             "чтобы получить готовый шаблон."
         )
         return
-    if any(not 0 <= value <= 8 for value in parameters.values()):
-        await message.answer("Каждый параметр должен быть от 0 до 8.")
+    if any(not 0 <= value <= 10 for value in parameters.values()):
+        await message.answer("Каждый параметр должен быть от 0 до 10.")
         return
     user = database.find_user_by_username(username)
     if not user or not database.set_parameters(user["telegram_id"], parameters):

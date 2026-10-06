@@ -43,14 +43,27 @@ Admin commands in a private chat:
 Причёска: 5.8
 ```
 
-The female scale uses LTB (3.00–3.49), MTB (3.50–4.99), HTB (5.00–5.49), Stacy (5.50–6.99) and True Eve (7.00–8.00). Sub 3 and Sub 5 are shared by all profiles. Details are stored in PostgreSQL and shown in the participant sheet.
+The rating scale is 0–10. Male tiers are Sub-3 (0–2.9), Sub-5 (3.0–3.9), LTN (4.0–4.7), MTN (4.8–5.5), HTN (5.6–6.7), Chad (6.8–8.2), and True Adam (8.3–10). Female tiers use the same thresholds with LTB, MTB, HTB, Stacy, and True Eva replacing the male labels. Existing numeric ratings are preserved; only future status classification follows the new thresholds.
 
 ## Bot commands
 
 ```text
 /scan
 /rate @username 3.9 Саня Машина
+/rate 123456789 3.9 Саня Машина
+/id Имя Фамилия
 ```
+
+Оценивать можно по username или напрямую по числовому Telegram ID. Если записи с
+таким ID ещё нет, бот создаст её без Telegram-профиля; имя и username подтянутся,
+когда пользователь напишет в группе или откроет Mini App. Telegram не позволяет
+получить ID произвольного пользователя только по username: ID можно взять из
+пересланного сообщения/сообщения пользователя, через `@userinfobot` или из
+`message.from_user.id` в обработчике бота.
+Если username отсутствует, но участник уже отображается в списке «Пока не
+оценён», используй `/id Имя Фамилия`: бот найдёт его ID в своей базе. Можно также
+сразу выполнить `/rate Имя Фамилия 4.2`; при совпадении имён бот покажет список
+ID для выбора.
 
 The bot records users from `new_chat_members` and `chat_member` updates, fetches their latest profile photo through Telegram and stores its `file_id` in PostgreSQL. The frontend receives `/api/avatar/{telegram_id}`, which proxies the image without exposing the bot token.
 
@@ -60,7 +73,7 @@ Telegram Bot API does not expose a method to enumerate every member of a group. 
 
 - `GET /api/health` — health check.
 - `GET /api/users` — `{ "rated": [...], "unrated": [...] }`, with rated users sorted from 8 to 0.
-- `POST /api/rate` — accepts `{ "telegram_id": 123, "score": 3.9, "nickname": "Саня Машина" }` and requires the `X-Admin-Id` header.
+- `POST /api/rate` — accepts `{ "telegram_id": 123, "score": 3.9, "nickname": "Саня Машина" }`, creates a placeholder when the ID is not known yet, and requires the `X-Admin-Id` header.
 - `GET /api/avatar/{telegram_id}` — cached Telegram profile image proxy.
 - `POST /api/users/me` — validates Telegram Mini App `initData` and adds the current viewer to the unrated list.
 
