@@ -27,6 +27,7 @@ class Database:
                     gender TEXT NOT NULL DEFAULT 'male',
                     score DOUBLE PRECISION,
                     avatar_file_id TEXT,
+                    avatar_source TEXT NOT NULL DEFAULT 'telegram',
                     symmetry_score DOUBLE PRECISION,
                     jaw_score DOUBLE PRECISION,
                     skin_score DOUBLE PRECISION,
@@ -58,6 +59,9 @@ class Database:
             connection.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS verdict TEXT"
             )
+            connection.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_source TEXT NOT NULL DEFAULT 'telegram'"
+            )
             for column in (
                 "symmetry_score", "jaw_score", "skin_score",
                 "harmony_score", "eyes_score", "hair_score",
@@ -84,7 +88,15 @@ class Database:
                 ON CONFLICT (telegram_id) DO UPDATE SET
                     username = EXCLUDED.username,
                     first_name = EXCLUDED.first_name,
-                    avatar_file_id = COALESCE(EXCLUDED.avatar_file_id, users.avatar_file_id),
+                    avatar_file_id = CASE
+                        WHEN users.avatar_source = 'manual' THEN users.avatar_file_id
+                        ELSE COALESCE(EXCLUDED.avatar_file_id, users.avatar_file_id)
+                    END,
+                    avatar_source = CASE
+                        WHEN users.avatar_source = 'manual' THEN users.avatar_source
+                        WHEN EXCLUDED.avatar_file_id IS NOT NULL THEN 'telegram'
+                        ELSE users.avatar_source
+                    END,
                     is_bot = EXCLUDED.is_bot,
                     is_active = TRUE,
                     updated_at = CURRENT_TIMESTAMP
@@ -97,7 +109,8 @@ class Database:
             connection.execute(
                 """
                 UPDATE users
-                SET avatar_file_id = %s, updated_at = CURRENT_TIMESTAMP
+                SET avatar_file_id = %s, avatar_source = 'manual',
+                    updated_at = CURRENT_TIMESTAMP
                 WHERE telegram_id = %s
                 """,
                 (avatar_file_id, telegram_id),
