@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 
 from backend.config import Settings, load_settings
 from backend.db import Database
-from backend.rating import get_status
+from backend.rating import assign_dense_ranks, get_status
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("rate-lb")
@@ -831,8 +831,7 @@ def users() -> dict[str, list[dict[str, Any]]]:
             continue
         payload = user_payload(database.row_to_dict(raw_row))
         (unrated if payload["score"] is None else rated).append(payload)
-    rated.sort(key=lambda item: item["score"], reverse=True)
-    return {"rated": rated, "unrated": unrated}
+    return {"rated": assign_dense_ranks(rated), "unrated": unrated}
 
 
 @app.post("/api/rate")

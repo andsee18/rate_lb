@@ -7,6 +7,29 @@ class RatingStatus:
     class_name: str
 
 
+def shown_score(score: float) -> str:
+    return f"{float(score):.1f}"
+
+
+def assign_dense_ranks(users: list[dict]) -> list[dict]:
+    ordered = sorted(
+        users,
+        key=lambda item: (
+            -float(shown_score(item["score"])),
+            (item.get("name") or "").casefold(),
+        ),
+    )
+    place = 0
+    previous = None
+    for item in ordered:
+        current = shown_score(item["score"])
+        if current != previous:
+            place += 1
+            previous = current
+        item["rank"] = place
+    return ordered
+
+
 def get_status(score: float, gender: str = "male") -> RatingStatus:
     if gender == "female":
         if score >= 8.3:
