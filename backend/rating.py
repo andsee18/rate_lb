@@ -31,12 +31,13 @@ def assign_dense_ranks(users: list[dict]) -> list[dict]:
 
 
 def get_status(score: float, gender: str = "male") -> RatingStatus:
+    score = float(shown_score(score))
     if gender == "female":
         if score >= 8.3:
             return RatingStatus("True Eva", "status-true-eve")
         if score >= 6.8:
             return RatingStatus("Stacy", "status-stacy")
-        if score >= 5.6:
+        if score >= 6:
             return RatingStatus("HTB", "status-htb")
         if score >= 4.8:
             return RatingStatus("MTB", "status-mtb")
@@ -49,7 +50,7 @@ def get_status(score: float, gender: str = "male") -> RatingStatus:
         return RatingStatus("True Adam", "status-true-adam")
     if score >= 6.8:
         return RatingStatus("Chad", "status-chad")
-    if score >= 5.6:
+    if score >= 6:
         return RatingStatus("HTN", "status-htn")
     if score >= 4.8:
         return RatingStatus("MTN", "status-mtn")

@@ -43,7 +43,7 @@ Admin commands in a private chat:
 Причёска: 5.8
 ```
 
-The rating scale is 0–10. Male tiers are Sub-3 (0–2.9), Sub-5 (3.0–3.9), LTN (4.0–4.7), MTN (4.8–5.5), HTN (5.6–6.7), Chad (6.8–8.2), and True Adam (8.3–10). Female tiers use the same thresholds with LTB, MTB, HTB, Stacy, and True Eva replacing the male labels. Existing numeric ratings are preserved; only future status classification follows the new thresholds.
+The rating scale is 0–10. Male tiers are Sub-3 (0–2.9), Sub-5 (3.0–3.9), LTN (4.0–4.7), MTN (4.8–5.9), HTN (6.0–6.7), Chad (6.8–8.2), and True Adam (8.3–10). Female tiers use the same thresholds with LTB, MTB, HTB, Stacy, and True Eva replacing the male labels. Existing numeric ratings are preserved; the status label follows these thresholds.
 
 ## Bot commands
 
