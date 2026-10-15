@@ -51,7 +51,9 @@
     .user-card:hover { border-color: rgba(71, 167, 255, .35); background: var(--surface-raised); }
     .tie-group { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; column-gap: 12px; padding: 4px 12px 4px 10px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
     .tie-people { min-width: 0; }
-    .tie-member { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; padding: 8px 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .tie-member { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 12px; width: 100%; padding: 8px 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .tie-group .tie-metrics { align-items: center; justify-content: center; gap: 8px; min-width: 48px; }
+    .tie-group .tie-metrics .score { letter-spacing: 0; line-height: 1; transform: translateY(1px); }
     .tie-member + .tie-member { margin-top: 2px; }
     .tie-member:active { opacity: .72; }
     .rank { color: var(--muted); font-size: 14px; font-weight: 700; text-align: center; }
@@ -253,18 +255,23 @@
           <span class="metrics"><strong class="score">${group.score}</strong><span class="status ${user.status_class}">${escapeHtml(user.status)}</span></span>
         </button>`;
       }
-      const sharedStatus = group.members.every((user) => user.status === group.members[0].status)
-        ? `<span class="status ${group.members[0].status_class}">${escapeHtml(group.members[0].status)}</span>`
-        : "";
+      const statusMarkup = (user) => `<span class="status ${user.status_class}">${escapeHtml(user.status)}</span>`;
+      const statuses = [];
+      for (const user of group.members) {
+        if (!statuses.some((item) => item.status === user.status)) statuses.push(user);
+      }
       const members = group.members.map((user) => `<button class="tie-member" type="button" data-user-id="${user.id}" aria-label="Открыть профиль ${escapeHtml(user.name)}">
           ${avatarMarkup(user.avatar_url, user.name)}
           <span class="identity"><strong class="name">${escapeHtml(user.name)}</strong><span class="nickname">${user.nickname ? escapeHtml(user.nickname) : "Без клички"}</span></span>
-          ${sharedStatus ? "" : `<span class="status ${user.status_class}">${escapeHtml(user.status)}</span>`}
         </button>`).join("");
+      const score = `<strong class="score">${group.score}</strong>`;
+      const metrics = statuses.length === 1
+        ? `<span class="metrics">${score}${statusMarkup(statuses[0])}</span>`
+        : `<span class="metrics tie-metrics">${statusMarkup(statuses[0])}${score}${statuses.slice(1).map(statusMarkup).join("")}</span>`;
       return `<section class="tie-group" aria-label="${group.rank} место, ${group.score}">
         <span class="${rankClass}">#${group.rank}</span>
         <div class="tie-people">${members}</div>
-        <span class="metrics"><strong class="score">${group.score}</strong>${sharedStatus}</span>
+        ${metrics}
       </section>`;
     }
 
