@@ -49,6 +49,13 @@
     .user-card { display: grid; grid-template-columns: 32px 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; padding: 11px 12px 11px 10px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: inherit; text-align: left; cursor: pointer; transition: transform .18s ease, border-color .18s ease, background .18s ease; -webkit-tap-highlight-color: transparent; }
     .user-card:active { transform: scale(.985); }
     .user-card:hover { border-color: rgba(71, 167, 255, .35); background: var(--surface-raised); }
+    .tie-group { display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 12px; padding: 8px 12px 8px 10px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+    .tie-rank { display: grid; place-items: center; align-self: start; padding-top: 2px; }
+    .tie-score { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 4px 0 2px; }
+    .tie-member { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: calc(100% + 8px); margin: 0 -4px 0 -4px; padding: 8px 4px; border: 0; border-top: 1px solid rgba(255,255,255,.06); border-radius: 12px; background: transparent; color: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .tie-member:first-of-type { margin-top: 4px; }
+    .tie-member:hover { background: var(--surface-raised); }
+    .tie-member:active { transform: scale(.985); }
     .rank { color: var(--muted); font-size: 14px; font-weight: 700; text-align: center; }
     .rank.top { font-size: 20px; font-weight: 900; letter-spacing: -.08em; }
     .rank.gold { color: #d8ae58; text-shadow: 0 0 15px rgba(216, 174, 88, .22); }
@@ -225,6 +232,46 @@
       });
     }
 
+    function groupByScore(ranked) {
+      const groups = [];
+      for (const user of ranked) {
+        const shown = formatScore(user.score);
+        const last = groups[groups.length - 1];
+        if (last && last.score === shown) last.members.push(user);
+        else groups.push({ rank: user.rank, score: shown, members: [user] });
+      }
+      return groups;
+    }
+
+    function renderPlace(group) {
+      const medals = { 1: "gold", 2: "silver", 3: "bronze" };
+      const rankClass = medals[group.rank] ? `rank top ${medals[group.rank]}` : "rank";
+      if (group.members.length === 1) {
+        const user = group.members[0];
+        return `<button class="user-card" type="button" data-user-id="${user.id}" aria-label="Открыть профиль ${escapeHtml(user.name)}">
+          <span class="${rankClass}">#${group.rank}</span>
+          ${avatarMarkup(user.avatar_url, user.name)}
+          <span class="identity"><strong class="name">${escapeHtml(user.name)}</strong><span class="nickname">${user.nickname ? escapeHtml(user.nickname) : "Без клички"}</span></span>
+          <span class="metrics"><strong class="score">${group.score}</strong><span class="status ${user.status_class}">${escapeHtml(user.status)}</span></span>
+        </button>`;
+      }
+      const sharedStatus = group.members.every((user) => user.status === group.members[0].status)
+        ? `<span class="status ${group.members[0].status_class}">${escapeHtml(group.members[0].status)}</span>`
+        : "";
+      const members = group.members.map((user) => `<button class="tie-member" type="button" data-user-id="${user.id}" aria-label="Открыть профиль ${escapeHtml(user.name)}">
+          ${avatarMarkup(user.avatar_url, user.name)}
+          <span class="identity"><strong class="name">${escapeHtml(user.name)}</strong><span class="nickname">${user.nickname ? escapeHtml(user.nickname) : "Без клички"}</span></span>
+          ${sharedStatus ? "" : `<span class="status ${user.status_class}">${escapeHtml(user.status)}</span>`}
+        </button>`).join("");
+      return `<section class="tie-group" aria-label="${group.rank} место, ${group.score}">
+        <div class="tie-rank"><span class="${rankClass}">#${group.rank}</span></div>
+        <div>
+          <div class="tie-score"><strong class="score">${group.score}</strong>${sharedStatus}</div>
+          ${members}
+        </div>
+      </section>`;
+    }
+
     function renderUsers() {
       if (activeView === "unrated") {
         leaderboard.innerHTML = users.unrated.length
@@ -237,16 +284,7 @@
         return;
       }
       const ranked = rankRated(users.rated);
-      const medals = { 1: "gold", 2: "silver", 3: "bronze" };
-      leaderboard.innerHTML = ranked.length ? ranked.map((user) => {
-        const rankClass = medals[user.rank] ? `rank top ${medals[user.rank]}` : "rank";
-        return `<button class="user-card" type="button" data-user-id="${user.id}" aria-label="Открыть профиль ${user.name}">
-          <span class="${rankClass}">#${user.rank}</span>
-          ${avatarMarkup(user.avatar_url, user.name)}
-          <span class="identity"><strong class="name">${escapeHtml(user.name)}</strong><span class="nickname">${user.nickname ? escapeHtml(user.nickname) : "Без клички"}</span></span>
-          <span class="metrics"><strong class="score">${formatScore(user.score)}</strong><span class="status ${user.status_class}">${escapeHtml(user.status)}</span></span>
-        </button>`;
-      }).join("") : '<div class="empty-state">Пока нет оценённых участников. Администратор может использовать команду /rate.</div>';
+      leaderboard.innerHTML = ranked.length ? groupByScore(ranked).map(renderPlace).join("") : '<div class="empty-state">Пока нет оценённых участников. Администратор может использовать команду /rate.</div>';
     }
 
     function setActiveView(view) {
