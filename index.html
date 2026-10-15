@@ -46,14 +46,13 @@
     .tab { padding: 10px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 750; cursor: pointer; }
     .tab.is-active { background: #252d38; color: var(--text); box-shadow: 0 3px 10px rgba(0,0,0,.18); }
     .leaderboard { display: grid; gap: 9px; }
-    .user-card { display: grid; grid-template-columns: 32px 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; padding: 11px 12px 11px 10px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: inherit; text-align: left; cursor: pointer; transition: transform .18s ease, border-color .18s ease, background .18s ease; -webkit-tap-highlight-color: transparent; }
+    .user-card { display: grid; grid-template-columns: 32px 48px minmax(0, 1fr) 88px; align-items: center; gap: 12px; width: 100%; padding: 11px 12px 11px 10px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: inherit; text-align: left; cursor: pointer; transition: transform .18s ease, border-color .18s ease, background .18s ease; -webkit-tap-highlight-color: transparent; }
     .user-card:active { transform: scale(.985); }
     .user-card:hover { border-color: rgba(71, 167, 255, .35); background: var(--surface-raised); }
-    .tie-group { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; column-gap: 12px; padding: 4px 12px 4px 10px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+    .tie-group { display: grid; grid-template-columns: 32px minmax(0, 1fr) 88px; align-items: center; column-gap: 12px; padding: 4px 12px 4px 10px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
     .tie-people { min-width: 0; }
     .tie-member { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 12px; width: 100%; padding: 8px 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-    .tie-group .tie-metrics { align-items: center; justify-content: center; gap: 8px; min-width: 48px; }
-    .tie-group .tie-metrics .score { letter-spacing: 0; line-height: 1; transform: translateY(1px); }
+    .tie-group .tie-metrics { gap: 8px; }
     .tie-member + .tie-member { margin-top: 2px; }
     .tie-member:active { opacity: .72; }
     .rank { color: var(--muted); font-size: 14px; font-weight: 700; text-align: center; }
@@ -67,8 +66,8 @@
     .identity { min-width: 0; }
     .name { display: block; overflow: hidden; margin: 0; font-size: 15px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
     .nickname { display: block; overflow: hidden; margin-top: 5px; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-    .metrics { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
-    .score { font-size: 17px; font-weight: 850; letter-spacing: -.04em; }
+    .metrics { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 88px; gap: 6px; }
+    .score { font-size: 17px; font-weight: 850; letter-spacing: 0; line-height: 1; text-align: center; }
     .status { display: inline-flex; align-items: center; min-height: 20px; padding: 3px 7px; border-radius: 6px; font-size: 9px; font-weight: 850; letter-spacing: .07em; white-space: nowrap; }
     /* The scale reads from muted bronze through graphite, silver and gold into deep red elite tiers. */
     .status-true-adam { color: #f6dfe4; border: 1px solid #a8445c; background: linear-gradient(135deg, #741d37, #4e1429); box-shadow: 0 0 16px rgba(116, 29, 55, .3); }
