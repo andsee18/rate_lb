@@ -49,13 +49,11 @@
     .user-card { display: grid; grid-template-columns: 32px 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; padding: 11px 12px 11px 10px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: inherit; text-align: left; cursor: pointer; transition: transform .18s ease, border-color .18s ease, background .18s ease; -webkit-tap-highlight-color: transparent; }
     .user-card:active { transform: scale(.985); }
     .user-card:hover { border-color: rgba(71, 167, 255, .35); background: var(--surface-raised); }
-    .tie-group { display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 12px; padding: 8px 12px 8px 10px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
-    .tie-rank { display: grid; place-items: center; align-self: start; padding-top: 2px; }
-    .tie-score { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 4px 0 2px; }
-    .tie-member { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: calc(100% + 8px); margin: 0 -4px 0 -4px; padding: 8px 4px; border: 0; border-top: 1px solid rgba(255,255,255,.06); border-radius: 12px; background: transparent; color: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-    .tie-member:first-of-type { margin-top: 4px; }
-    .tie-member:hover { background: var(--surface-raised); }
-    .tie-member:active { transform: scale(.985); }
+    .tie-group { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; column-gap: 12px; padding: 4px 12px 4px 10px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+    .tie-people { min-width: 0; }
+    .tie-member { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; padding: 8px 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .tie-member + .tie-member { margin-top: 2px; }
+    .tie-member:active { opacity: .72; }
     .rank { color: var(--muted); font-size: 14px; font-weight: 700; text-align: center; }
     .rank.top { font-size: 20px; font-weight: 900; letter-spacing: -.08em; }
     .rank.gold { color: #d8ae58; text-shadow: 0 0 15px rgba(216, 174, 88, .22); }
@@ -264,11 +262,9 @@
           ${sharedStatus ? "" : `<span class="status ${user.status_class}">${escapeHtml(user.status)}</span>`}
         </button>`).join("");
       return `<section class="tie-group" aria-label="${group.rank} место, ${group.score}">
-        <div class="tie-rank"><span class="${rankClass}">#${group.rank}</span></div>
-        <div>
-          <div class="tie-score"><strong class="score">${group.score}</strong>${sharedStatus}</div>
-          ${members}
-        </div>
+        <span class="${rankClass}">#${group.rank}</span>
+        <div class="tie-people">${members}</div>
+        <span class="metrics"><strong class="score">${group.score}</strong>${sharedStatus}</span>
       </section>`;
     }
 
